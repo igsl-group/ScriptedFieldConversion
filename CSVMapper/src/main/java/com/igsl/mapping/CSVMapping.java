@@ -135,6 +135,7 @@ public class CSVMapping {
 					Log.error(LOGGER, "Unable to read API token", ex);
 				}
 			}
+			Log.info(LOGGER, "Retrieving object IDs from Jira Cloud");
 			// Setup RestUtil client pool
 			ClientPool.setMaxPoolSize(10, 0, 0);			
 			// Initialize global mapping
@@ -144,12 +145,19 @@ public class CSVMapping {
 					loadMapping(DataConversion.getGlobalMappings(), host, email, token, ot, null);
 				}
 			}
+			try {
+				Log.debug(LOGGER, "Global mappings: " + 
+						OM.writeValueAsString(DataConversion.getGlobalMappings()));
+			} catch (JsonProcessingException e) {
+				Log.error(LOGGER, "Global mappings: JSON error", e);
+			}
+			Log.info(LOGGER, "Processing CSV file: " + csvFile);
 			// Parse CSV file
 			CSVFormat writeFormat = CSVFormat.Builder.create()
-					.setHeader(ScriptedFieldConversionConstants.CSV_HEADERS)
+					.setHeader(ScriptedFieldConversionConstants.CSV_HEADERS.toArray(new String[0]))
 					.build();
 			CSVFormat readFormat = CSVFormat.Builder.create()
-					.setHeader(ScriptedFieldConversionConstants.CSV_HEADERS)
+					.setHeader(ScriptedFieldConversionConstants.CSV_HEADERS.toArray(new String[0]))
 					.setSkipHeaderRecord(true)
 					.build();
 			Path csvPath = Paths.get(csvFile);
@@ -162,10 +170,15 @@ public class CSVMapping {
 				while (it.hasNext()) {
 					CSVRecord record = it.next();
 					List<String> valueList = record.toList();
+					String issueKey = record.get(
+							ScriptedFieldConversionConstants.CSV_HEADER_ISSUE_KEY);
 					String dataConversion = record.get(
 							ScriptedFieldConversionConstants.CSV_HEADER_DATA_CONVERSION);
 					String value = record.get(
 							ScriptedFieldConversionConstants.CSV_HEADER_CONVERTED_VALUE);
+					Log.info(LOGGER, "Process issue: " + issueKey);
+					Log.debug(LOGGER, "Data Conversion used: " + dataConversion);
+					Log.debug(LOGGER, "Original value: " + value);					
 					DataConversionType dvType = DataConversionType.parse(dataConversion);
 					if (dvType.getImplementation() != null) {
 						// Initialize local mapping
@@ -179,11 +192,22 @@ public class CSVMapping {
 										host, email, token, 
 										entry.getKey(), entry.getValue());
 							}
+							try {
+								Log.debug(LOGGER, "Local mappings: " + 
+										OM.writeValueAsString(dvType.getImplementation().getLocalMappings()));
+							} catch (JsonProcessingException e) {
+								Log.error(LOGGER, "Local mappings: JSON error", e);
+							}
 						}
 						// Perform mapping
-						String newValue = dvType.getImplementation().remap(value);
-						valueList.set(ScriptedFieldConversionConstants.CSV_COLUMN_INDEX_CONVERTED_VALUE, 
-								newValue);
+						try {
+							String newValue = dvType.getImplementation().remap(value);
+							Log.debug(LOGGER, "Remapped value: " + newValue);
+							valueList.set(ScriptedFieldConversionConstants.CSV_COLUMN_INDEX_CONVERTED_VALUE, 
+									newValue);
+						} catch (Exception ex) {
+							Log.error(LOGGER, ex.getMessage());
+						}
 					}
 					// Write output CSV
 					printer.printRecord((Object[]) valueList.toArray(new String[0]));

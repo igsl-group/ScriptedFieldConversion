@@ -144,22 +144,37 @@ public class QuoteResponses extends DataConversion {
 		StringBuilder result = new StringBuilder("");
 		Matcher matcher = ADD_SUBTASK_PATTERN.matcher(sourceValue);
 		if (matcher.matches()) {
+			StringBuilder errorMessage = new StringBuilder();
 			String table = matcher.group(1);
 			String projectKey = matcher.group(2);
 			String issueTypeName = matcher.group(3);
 			String parentIssueKey = matcher.group(4);
 			String projectId = 
 					globalMappings.containsKey(ObjectType.PROJECT)? 
-						globalMappings.get(ObjectType.PROJECT).get(projectKey) : 
-						"";
+							globalMappings.get(ObjectType.PROJECT).get(projectKey) : 
+							null;
+			if (projectId == null) {
+				errorMessage.append("Project key [").append(projectKey).append("]").append(NEWLINE);
+			}
 			String issueTypeId = 
 					globalMappings.containsKey(ObjectType.ISSUE_TYPE)? 
 							globalMappings.get(ObjectType.ISSUE_TYPE).get(issueTypeName): 
-							"";
+							null;
+			if (issueTypeId == null) {
+				errorMessage.append("Issue type name [").append(issueTypeName).append("]").append(NEWLINE);
+			}
 			String parentIssueId = 
 					localMappings.containsKey(ObjectType.ISSUE)? 
 							localMappings.get(ObjectType.ISSUE).get(parentIssueKey): 
-							"";
+							null;
+			if (parentIssueId == null) {
+				errorMessage.append("Parent issue key [").append(parentIssueKey).append("]").append(NEWLINE);
+			}			
+			if (projectId == null || 
+				issueTypeId == null || 
+				parentIssueId == null) {
+				throw new Exception("Unable to map: " + errorMessage.toString());
+			}
 			result	.append(table)
 					.append(NEWLINE)
 					.append("[Add new Quote Response|")
@@ -169,7 +184,7 @@ public class QuoteResponses extends DataConversion {
 					.append("&parentIssueId=").append(parentIssueId)
 					.append("]");
 		} else {
-			result.append(sourceValue);
+			throw new Exception("Unable to map: regex not match");
 		}
 		return result.toString();
 	}
