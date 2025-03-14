@@ -1,0 +1,586 @@
+<html>
+<head>
+<title>Scripted Field Conversion</title>
+<meta name="decorator" content="atl.admin" />
+<meta name="admin.active.section" content="plugin-admin-config-link" />
+<style type="text/css">
+.inline {
+	display: inline;
+}
+table.DataTable {
+	width: 100%;
+	border: solid 1px;
+	text-align: left;
+	vertical-align: top;
+	border-collapse: collapse;
+}
+table.DataTable th, table.DataTable td {
+	font-size: 12px;
+	border: solid 1px;
+}
+table.ScreenTable {
+	width: 100%;
+	border: solid 1px;
+	text-align: left;
+	vertical-align: top;
+	border-collapse: collapse;
+}
+table.ScreenTable th, table.ScreenTable td {
+	font-size: 8px;
+	border: solid 1px;
+}
+div.Scripted, div.Replacement {
+  padding: 0px;
+  display: none;
+  overflow: hidden;
+}
+</style>
+<script type="text/javascript">
+	function selectAllFields(ctrl, name) {
+		var state = $(ctrl).prop("checked");
+		$('input[type="checkbox"][id^="' + name + '"]').prop('checked', state);
+	}
+	
+	function updateAllSelects(ctrl, name) {
+		var value = $(ctrl).attr("value");
+		$('select[name="' + name + '"]').attr("value", value);
+	}
+
+	function toggleDetails(ctrl, name, show) {
+		if (ctrl) {
+			$(ctrl).siblings('div.' + name).toggle();
+		} else {
+			if (show) {
+				$('div.' + name).show();
+			} else {
+				$('div.' + name).hide();
+			}
+		}
+	}
+	
+	function uploadFile() {
+		var size = $('#file')[0].files[0].size;
+		if (size < 50 * 1024 * 1024) {
+			document.forms["loadSessionForm"].submit();
+		} else {
+			alert("Selected file is too large");
+		}
+	}
+	
+	function modifyProjects(ctrl) {
+		var values = $(ctrl).val();
+		if (values) {
+			var result = values.join(",");
+			$(ctrl).siblings('input[name="projects"]').val(result);
+		} else {
+			$(ctrl).siblings('input[name="projects"]').val("");
+		}
+	}
+	
+	function addProject(ctrl) {
+		var selectedValue = $(ctrl).val();
+		var target = $(ctrl).siblings('input[name="projects"]');
+		var originalValue = target.val();
+		var newValue;
+		if (originalValue) {
+			newValue = originalValue + "," + selectedValue;
+		} else {
+			newValue = selectedValue;
+		}
+		target.val(newValue);
+		$(ctrl).val("");
+	}
+	
+	function clearAllActions() {
+		$('select[name="fieldAction"]').val("none");
+		$('select[name="screenAction"]').val("none");
+		$('select[name="dataAction"]').val("none");
+	}
+</script>
+</head>
+<body>
+	<!-- 
+	<h3>Messasge: </h3>
+	#set ($newLine = "
+")
+	#set ($msg = "")
+	#foreach ($m in $action.getMessage())
+		#set ($msg = $msg + $m + $newLine)
+	#end
+	<textarea rows="5" cols="100">$!{msg}</textarea>
+	-->
+	<h3>Manage Session Data:</h3>
+	<table class="DataTable">
+		<tbody>
+			<tr>
+				<form 	class="ScriptedFieldConversion"
+						id="loadSessionForm" 
+						method="POST" 
+						action="ScriptedFieldConversion!restoreSession.jspa"
+						enctype="multipart/form-data"
+				>
+					<th>Restore Session</th>
+					<td width="60%">
+						Select File: <input id="file" type="file" name="file" accept="*.json"/>
+					</td>
+					<td>
+						<button type="button" onclick="uploadFile()">Restore Session</button>
+					</td>
+				</form>
+			</tr>
+			<tr>
+				<th>Backup Session</th>
+				<td colspan="2">
+					<form 	class="ScriptedFieldConversion" 
+							id="saveSessionForm" 
+							method="GET" 
+							action="ScriptedFieldConversion!saveSession.jspa">
+						<button type="submit">Download Session</button>
+					</form>
+				</td>
+			</tr>
+		</tbody>
+	</table>
+	<h3>Convert Scripted Fields: </h3>
+	<form 	class="ScriptedFieldConversion" 
+			id="convertForm" 
+			method="POST" 
+			action="ScriptedFieldConversion!convert.jspa">
+		<table class="DataTable">
+			<thead>
+				<tr>
+					<th>Field Name</th>
+					<th>Field Id<br/>Template/Class</th>
+					<th>
+						Used in Screens<br/>
+						<button type="button" class="Collapsible" onclick="toggleDetails(null, 'Scripted', true)">
+							Show
+						</button>
+						<button type="button" class="Collapsible" onclick="toggleDetails(null, 'Scripted', false)">
+							Hide
+						</button>
+					</th>
+					<th>
+						Field Action<br/>
+						<select onchange="updateAllSelects(this, 'fieldAction')">
+							#foreach ($item in $action.getAllFieldActions())
+								<option value="${item.getValue()}">$!{item.getDisplay()}</option>
+							#end
+						</select>
+					</th>
+					<th>
+						Screen Action<br/>
+						<select onchange="updateAllSelects(this, 'screenAction')">
+							#foreach ($item in $action.getAllScreenActions())
+								<option value="${item.getValue()}">$!{item.getDisplay()}</option>
+							#end
+						</select>
+					</th>
+					<th>
+						Data Action<br/>
+						<select onchange="updateAllSelects(this, 'dataAction')">
+							#foreach ($item in $action.getAllDataActions())
+								<option value="${item.getValue()}">$!{item.getDisplay()}</option>
+							#end
+						</select>
+					</th>
+					<th>Replacement Field</th>
+					<th>
+						Replacement Used in Screens<br/>
+						<button type="button" class="Collapsible" onclick="toggleDetails(null, 'Replacement', true)">
+							Show
+						</button>
+						<button type="button" class="Collapsible" onclick="toggleDetails(null, 'Replacement', false)">
+							Hide
+						</button>
+					</th>
+					<th>Extract Data from Project(s)</th>
+					<th>Data Conversion (applies to both copy and export)</th>
+				</tr>
+			</thead>
+			<tbody>
+				<!-- For each scripted field -->
+				#foreach ($row in $action.getDataRows())
+					#set ($scriptedFieldId = $row.getScriptedField().getFullFieldId())
+					Scripted Field ID: $!{scriptedFieldId}
+					<tr>
+						<!-- Hidden field id -->
+						<input 	type="hidden" 
+								name="select" 
+								value="${scriptedFieldId}"/>
+						<!-- Field name -->
+						<td>$!{row.getScriptedField().getName()}</td>
+						<!-- Field ID and type -->
+						<td>$!{scriptedFieldId}<br/>$!{row.getScriptedField().getType()}</td>
+						<!-- Used in screens sub-table -->
+						<td>
+							#set ($ScreenCount = 0)
+							#if ($action.getScreenInfoMap().containsKey($scriptedFieldId))
+								#set ($ScreenCount = $action.getScreenInfoMap().get($scriptedFieldId).size())
+							#end
+							<p>Used in $!{ScreenCount} screen(s)</p>
+							<button type="button" onclick="toggleDetails(this, 'Scripted', null)">
+								Details
+							</button>
+							<div class="Scripted">
+								<table class="ScreenTable">
+									<thead>
+										<th>Screen Name (Id)</th>
+										<th>Tab Name (Id)</th>
+										<th>Sequence</th>
+									</thead>
+									<tbody>
+										#foreach ($item in $action.getScreenInfoMap().get($scriptedFieldId)) 
+											<tr>
+												<td>$!{item.getScreenName()} ($!{item.getScreenId()})</td>
+												<td>$!{item.getTabName()} ($!{item.getTabId()})</td>
+												<td>$!{item.getSequence()}</td>
+											</tr>
+										#end
+									</tbody>
+									<tfoot>
+										#if (!$action.getScreenInfoMap().containsKey($scriptedFieldId) || 
+											 $action.getScreenInfoMap().get($scriptedFieldId).size() == 0)
+											<tr>
+												<td colspan="100%">
+													Not used in any screen
+												</td>
+											</tr>
+										#end							
+									</tfoot>
+								</table>
+							</div>
+						</td>
+						<td>
+							#set($fieldAction = $row.getFieldAction().getValue())
+							<select name="fieldAction">
+								#foreach ($item in $action.getAllFieldActions())
+									#if ($fieldAction == $item.getValue()) 
+										<option selected="selected" value="${item.getValue()}">$!{item.getDisplay()}</option>
+									#else
+										<option value="${item.getValue()}">$!{item.getDisplay()}</option>
+									#end
+								#end
+							</select>
+						</td>
+						<td>
+							#set($screenAction = $row.getScreenAction().getValue())
+							<select name="screenAction">
+								#foreach ($item in $action.getAllScreenActions())
+									#if ($screenAction == $item.getValue()) 
+										<option selected="selected" value="${item.getValue()}">$!{item.getDisplay()}</option>
+									#else
+										<option value="${item.getValue()}">$!{item.getDisplay()}</option>
+									#end
+								#end
+							</select>
+						</td>
+						<td>
+							#set($dataAction = $row.getDataAction().getValue())
+							<select name="dataAction">
+								#foreach ($item in $action.getAllDataActions())
+									#if ($dataAction == $item.getValue()) 
+										<option selected="selected" value="${item.getValue()}">$!{item.getDisplay()}</option>
+									#else
+										<option value="${item.getValue()}">$!{item.getDisplay()}</option>
+									#end
+								#end
+							</select>
+						</td>
+						<!-- Linked replacement field -->
+						<td>
+							#if ($row.getReplacementFieldId())
+								#set ($id = $row.getReplacementFieldId())
+							#else
+								#set ($id = $null)
+							#end
+							<select name="replacementField">
+								<option value=" ">N/A</option>
+								#foreach ($item in $action.getCustomFields().get($row.getScriptedField().getName())) 
+									#set ($title = $item.getCustomFieldType().getName())
+									#if ($item.getId() != $scriptedFieldId)
+										#if ($id == $item.getId())
+											<option selected="selected" 
+													title="$!{title}"
+													value="${item.getId()}">$!{item.getId()}</option>
+										#else
+											<option title="$!{title}" 
+													value="${item.getId()}">$!{item.getId()}</option>
+										#end
+									#end
+								#end
+							</select>
+						</td>
+						<!-- Replacement used in screen -->
+						<td>
+							#set ($replacementId = $row.getReplacementFieldId())
+							#set ($ScreenCount = 0)
+							#if ($action.getScreenInfoMap().containsKey($replacementId))
+								#set ($ScreenCount = $action.getScreenInfoMap().get($replacementId).size())
+							#end
+							<p>Used in $!{ScreenCount} screen(s)</p>
+							<button type="button" onclick="toggleDetails(this, 'Replacement', null)">
+								Details
+							</button>
+							<div class="Replacement">
+								<table class="ScreenTable">
+									<thead>
+										<th>Screen Name (Id)</th>
+										<th>Tab Name (Id)</th>
+										<th>Sequence</th>
+									</thead>
+									<tbody>
+										#foreach ($item in $action.getScreenInfoMap().get($replacementId)) 
+											<tr>
+												<td>$!{item.getScreenName()} ($!{item.getScreenId()})</td>
+												<td>$!{item.getTabName()} ($!{item.getTabId()})</td>
+												<td>$!{item.getSequence()}</td>
+											</tr>
+										#end
+									</tbody>
+									<tfoot>
+										#if (!$action.getScreenInfoMap().containsKey($replacementId) || 
+											 $action.getScreenInfoMap().get($replacementId).size() == 0)
+											<tr>
+												<td colspan="100%">
+													Not used in any screen
+												</td>
+											</tr>
+										#end							
+									</tfoot>
+								</table>
+							</div>
+						</td>
+						<!-- Project keys for data query -->
+						<td>
+							Comma-delimited project keys, leave blank for all: <br/>
+							<input 	type="text" 
+									name="projects" 
+									value="$!{row.getProjects()}"/><br/>
+							<br/>
+							Add Project:<br/>
+							<input 	list="projectList_${velocityCount}" 
+									onchange="addProject(this)"/>
+							<datalist id="projectList_${velocityCount}">
+								#foreach ($project in $action.getProjects())
+									<option value="${project.getKey()}">$!{project.getName()} ($!{project.getKey()})</option>
+								#end								
+							</datalist>
+							<!-- 
+							Select Projects:<br/> 
+							<select multiple="multiple" onchange="modifyProjects(this)">
+								#foreach ($project in $action.getProjects())
+									#if ($row.getProjects().contains($project.getKey()))
+										<option selected="selected" value="${project.getKey()}">$!{project.getName()}</option>
+									#else
+										<option value="${project.getKey()}">$!{project.getName()}</option>
+									#end
+								#end
+							</select>
+							-->
+						</td>
+						<td>
+							<select name="dataConversion">
+								#foreach ($item in $action.getDataConversionTypes())
+									#if ($item.getValue() == $row.getDataConversionType().getValue())
+										<option value="$!{item.getValue()}" 
+												title="$!{item.getDesc()}"
+												selected="selected">$!{item.getDisplay()}</option>
+									#else
+										<option value="$!{item.getValue()}"
+												title="$!{item.getDesc()}">$!{item.getDisplay()}</option>
+									#end
+								#end
+							</select>
+						</td>
+					</tr>		
+				#end
+			</tbody>
+			<tfoot>
+				#if ($action.getScriptedFields().size() != 0) 
+					<tr>
+						<td colspan="3"/>
+						<td colspan="3">
+							<input type="button"
+								style="width: 100%"
+								value="Clear All Actions"
+								onclick="clearAllActions()"/>
+						</td>
+						<td colspan="4"/>
+					</tr>
+				#end
+				<tr>
+					<td colspan="100%">
+						#if ($action.getScriptedFields().size() == 0) 
+							No scripted fields found
+						#else
+							<input type="submit" value="Process Selected Fields"/>
+						#end
+					</td>
+				</tr>
+			</tfoot>
+		</table>
+	</form>
+	<!-- 
+	<h3>Exported Data: </h3>
+	#if ($action.hasZip())
+		<p>
+			<a 	href="ScriptedFieldConversion!download.jspa" 
+				onclick="$(this).remove()">Download ZIP file (this link is single-use)</a>
+		</p>
+	#else
+		<p>No export data available</p>	
+	#end
+	-->
+	<h3>Processing Log: </h3>
+	<table class="DataTable">
+		<thead>
+			<tr>
+				<th>Field Id</th>
+				<th>Field Name</th>
+				<th>Replacement Field</th>
+				<th>Data Copy/Export</th>
+				<th>Screen Replace Result</th>
+			</tr>
+		</thead>
+		<tbody>
+			#foreach ($row in $action.getDataRows())
+				#if ($row.getActionLog().getFieldId())
+					<tr>
+						<td>$!{row.getActionLog().getFieldId()}</td>
+						<td>$!{row.getActionLog().getFieldName()}</td>
+						<td>
+							#foreach ($entry in $row.getActionLog().getFieldAction())
+								$!{entry}<br/>
+							#end
+						</td>
+						<td>
+							#foreach ($entry in $row.getActionLog().getDataAction())
+								$!{entry}<br/>
+							#end
+						</td>
+						<td>
+							#foreach ($entry in $row.getActionLog().getScreenAction())
+								$!{entry}<br/>
+							#end
+						</td>
+					</tr>
+				#end
+			#end
+		</tbody>
+	</table>
+	<h3>Background Job:</h3>
+	<table class="DataTable">
+		<thead>
+			<tr>
+				<th>Scripted Field Id</th>
+				<th>Job Id</th>
+				<th>Action</th>
+				<th>Status</th>
+				<th>Start Date</th>
+				<th>End Date</th>
+				<th width="50%">Message</th>
+				<th>Actions</th>
+			</tr>
+		</thead>
+		<tbody>
+			#set ($jobEntityList = $action.getAllJobEntity())
+			#if ($jobEntityList.size() == 0)
+				<tr>
+					<td colspan="100%">No background job found</td>
+				</tr> 
+			#else
+				#foreach ($jobEntity in $jobEntityList)
+					<tr>
+						<td>$!{jobEntity.getScriptedFieldId()}</td>
+						<td>$!{jobEntity.getJobId()}</td>
+						<td>$!{jobEntity.getAction()}</td>
+						<td>
+							#if ($jobEntity.isRunning())
+								Running
+							#else
+								Stopped
+							#end	
+						</td>
+						<td>$!{jobEntity.getStartDate()}</td>
+						<td>$!{jobEntity.getEndDate()}</td>
+						<td>
+							<textarea style="width: 95%" rows="5">$!{jobEntity.getMessage()}</textarea>
+						</td>
+						<td>
+							#if ($jobEntity.getDownload())
+								<form 	class="ScriptedFieldConversion" 
+										method="POST" 
+										action="ScriptedFieldConversion!download.jspa">
+									<input type="hidden" name="id" value="${jobEntity.getID()}"/>
+									<button type="submit">Download</button>
+								</form>
+							#end
+							<form 	class="ScriptedFieldConversion"
+									method="POST" 
+									action="ScriptedFieldConversion!delete.jspa">
+								<input type="hidden" name="id" value="${jobEntity.getID()}"/>
+								<button type="submit">Delete</button>
+							</form>
+						</td>
+					</tr>
+				#end
+			#end
+		</tbody>
+		<tfoot>
+			<tr>
+				<td colspan="100%">
+					<form 	class="inline ScriptedFieldConversion" 
+							method="POST" 
+							action="ScriptedFieldConversion.jspa">
+						<input type="submit" value="Refresh"/>
+					</form>
+					<form 	class="inline ScriptedFieldConversion"
+							method="POST" 
+							action="ScriptedFieldConversion!deleteAll.jspa">
+						<input type="submit" value="Delete All"/>
+					</form>
+				</td>
+			</tr>
+		</tfoot>
+	</table>
+	<h3>Execute SQL:</h3>
+	<form 	class="ScriptedFieldConversion"
+			id="sqlForm" 
+			method="POST" 
+			action="ScriptedFieldConversion!sql.jspa">
+		<table class="DataTable">
+			<tbody>
+				<tr>
+					<th>SQL</th>
+					<td>
+						<textarea name="sql" cols="100" rows="2">$!{action.getSql()}</textarea>
+					</td>
+				</tr>
+				<tr>
+					<th>Result</th>
+					<td>
+						<textarea cols="100" rows="5">$!{action.getSqlResult()}</textarea>
+					</td>
+				</tr>
+			</tbody>
+			<tfoot>
+				<tr>
+					<td span="100%">
+						<input type="submit" value="Execute"/>
+					</td>
+				</tr>
+			</tfoot>
+		</table>
+	</form>
+	<script type="text/javascript">
+		// Stop enter key from submitting convertForm
+		document.forms["convertForm"].onkeypress = function(e) {
+			var key = e.charCode || e.keyCode || 0;     
+			if (key == 13) {
+				e.preventDefault();
+		  	}
+		}
+	</script>
+</body>
+</html>

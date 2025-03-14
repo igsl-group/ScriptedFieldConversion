@@ -1,0 +1,53 @@
+<atlassian-plugin key="${atlassian.plugin.key}"
+	name="${project.name}" plugins-version="2">
+
+	<!-- Do not reuse name attributes here. All of them are considered a module 
+		in this plugin -->
+
+	<resource type="i18n" name="i18n"
+		location="ScriptedFieldConversion" />
+
+	<!-- Active Object -->
+	<ao key="ao-module">
+		<description>Active Objects</description>
+		<entity>com.igsl.job.JobEntity</entity>
+	</ao>
+	
+	<plugin-info>
+		<description>${project.description}</description>
+		<version>${project.version}</version>
+		<vendor name="${project.organization.name}"
+			url="${project.organization.url}" />
+		<bundle-instructions>
+			<Import-Package>com.fasterxml.jackson,*;resolution:=optional
+			</Import-Package>
+		</bundle-instructions>
+	</plugin-info>
+
+	<web-section key="ScriptedFieldConversionSection"
+		location="admin_plugins_menu">
+		<label key="Scripted Field Conversion" />
+	</web-section>
+
+	<web-item key="ScriptedFieldConversionMenu"
+		name="Scripted Field Conversion"
+		section="admin_plugins_menu/ScriptedFieldConversionSection"
+		weight="10">
+		<description key="desc">Scripted Field Conversion</description>
+		<label key="ScriptedFieldConversion.title" />
+		<link linkId="ScriptedFieldConversionLink">/secure/admin/plugins/handler/ScriptedFieldConversion!init.jspa
+		</link>
+	</web-item>
+
+	<webwork1 key="ScriptedFieldConversion"
+		name="Scripted Field Conversion" class="java.lang.Object">
+		<description>Scripted Field Conversion</description>
+		<actions>
+			<action name="com.igsl.ScriptedFieldConversion"
+				alias="ScriptedFieldConversion">
+				<view name="input">templates/config/input.vm</view>
+			</action>
+		</actions>
+	</webwork1>
+
+</atlassian-plugin>
