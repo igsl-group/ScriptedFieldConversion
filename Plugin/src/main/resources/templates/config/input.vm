@@ -202,7 +202,6 @@ div.Scripted, div.Replacement {
 				<!-- For each scripted field -->
 				#foreach ($row in $action.getDataRows())
 					#set ($scriptedFieldId = $row.getScriptedField().getFullFieldId())
-					Scripted Field ID: $!{scriptedFieldId}
 					<tr>
 						<!-- Hidden field id -->
 						<input 	type="hidden" 
