@@ -28,7 +28,7 @@
 			<!-- 
 				Eclipse will complain about systemPath not being absoulte path, but Maven will build successfully
 			-->
-			<systemPath>${project.basedir}\..\Plugin\target\ScriptedFieldConversion-0.0.2.jar</systemPath>
+			<systemPath>${project.basedir}\..\Plugin\target\ScriptedFieldConversion-0.0.3.jar</systemPath>
 		</dependency>
 
 		<dependency>
