@@ -28,7 +28,8 @@ public abstract class DataConversion {
 	 */
 	public enum ObjectType {
 		ISSUE(false),
-		ISSUE_TYPE(true),	
+		ISSUE_TYPE(true),
+		CUSTOM_FIELD(true),
 		PROJECT(true);
 		private boolean global;	// If global, the data is cached for all DataConversion to use
 		private ObjectType(boolean global) {

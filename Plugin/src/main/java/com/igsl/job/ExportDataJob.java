@@ -21,6 +21,7 @@ import com.igsl.ScriptedFieldConversion;
 import com.igsl.ScriptedFieldConversionConstants;
 import com.igsl.action.DataAction;
 import com.igsl.dataconversion.DataConversion;
+import com.igsl.importconfig.ImportConfig;
 import com.igsl.session.DataRow;
 
 public class ExportDataJob extends Job {
@@ -43,10 +44,15 @@ public class ExportDataJob extends Job {
 		appendMessage("Exporting data");
 		CustomField scriptedField = CUSTOM_FIELD_MANAGER.getCustomFieldObject(this.getJobEntity().getScriptedFieldId());
 		if (scriptedField == null) {
-			appendMessage("Scripted field or replacement field not found");
+			appendMessage("Scripted field not found");
 		} else {
 			try (	ByteArrayOutputStream baos = new ByteArrayOutputStream(); 
 					ZipOutputStream zos = new ZipOutputStream(baos)) {
+				// Add configuration file
+				zos.putNextEntry(new ZipEntry("Config.json"));
+				zos.write(OM.writeValueAsBytes(new ImportConfig(scriptedField.getName())));
+				zos.closeEntry();
+				// Search for issues
 				String jql = ScriptedFieldConversion.getJql(user, dataRow);
 				appendMessage("JQL: " + jql);
 				SearchResults<Issue> searchResult = ScriptedFieldConversion.searchIssue(
@@ -135,7 +141,6 @@ public class ExportDataJob extends Job {
 								DOUBLE_QUOTE + dataRow.getDataConversionType().getValue() + DOUBLE_QUOTE + "," + 
 								DOUBLE_QUOTE + convertedFieldValueString + DOUBLE_QUOTE + NEWLINE).getBytes());
 					}	// For each issue found
-					// TODO Output configuration file for import?
 					zos.closeEntry();
 				} catch (Exception ex) {
 					appendMessage("Failed to write ZIP entry: " + ex.getMessage());

@@ -23,13 +23,17 @@ import org.apache.logging.log4j.Logger;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectReader;
+import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.igsl.Console;
 import com.igsl.Log;
 import com.igsl.ScriptedFieldConversionConstants;
 import com.igsl.dataconversion.DataConversion;
 import com.igsl.dataconversion.DataConversion.ObjectType;
+import com.igsl.importconfig.ImportConfig;
 import com.igsl.dataconversion.DataConversionType;
+import com.igsl.model.CustomField;
 import com.igsl.model.Issue;
 import com.igsl.model.IssueType;
 import com.igsl.model.Project;
@@ -47,6 +51,11 @@ public class CSVMapping {
 	private static final ObjectMapper OM = new ObjectMapper()
 			.enable(SerializationFeature.INDENT_OUTPUT)
 			.disable(DeserializationFeature.FAIL_ON_IGNORED_PROPERTIES);
+	
+	private static final String REMAPPED = "Remapped_";
+	
+	// TODO Implement a way to override constraints from DataConversion implementation?
+	// So I can test stuff
 	
 	private static boolean loadMapping(
 			Map<ObjectType, Map<String, String>> output, 
@@ -94,6 +103,31 @@ public class CSVMapping {
 				return false;
 			}
 			break;
+		case CUSTOM_FIELD: 
+			try {
+				Map<String, String> map = new HashMap<>();
+				RestUtil<CustomField> restUtil = RestUtil.getInstance(CustomField.class)
+						.host(host)
+						.authenticate(email, token)
+						.path("/rest/api/3/field")
+						.pagination(new SinglePage<CustomField>(CustomField.class))
+						.method(HttpMethod.GET);
+				// This REST API accepts 0 parameters
+				List<CustomField> fields = restUtil.requestAllPages();
+				for (CustomField field : fields) {
+					if (map.containsKey(field.getName())) {
+						map.put(field.getName(), 
+								map.get(field.getName()) + "|" + field.getId());
+					} else {
+						map.put(field.getName(), field.getId());
+					}
+				}
+				output.put(ObjectType.CUSTOM_FIELD, map);
+			} catch (Exception ex) {
+				Log.error(LOGGER, "Failed to retrieve custom field mappings", ex);
+				return false;
+			}
+			break;
 		case PROJECT:
 			try {
 				Map<String, String> map = new HashMap<>();
@@ -124,6 +158,7 @@ public class CSVMapping {
 		CommandLine cli = CLI.parse(args);
 		if (cli != null) {
 			String csvFile = cli.getOptionValue(CLI.OPTION_CSV);			
+			String configFile = cli.getOptionValue(CLI.OPTION_CONFIG);
 			String host = cli.getOptionValue(CLI.OPTION_HOST);
 			String email = cli.getOptionValue(CLI.OPTION_EMAIL);
 			String token = cli.getOptionValue(CLI.OPTION_API_TOKEN);
@@ -151,6 +186,33 @@ public class CSVMapping {
 			} catch (JsonProcessingException e) {
 				Log.error(LOGGER, "Global mappings: JSON error", e);
 			}
+			// Parse config file
+			Log.info(LOGGER, "Processing config file: " + configFile);
+			try {
+				ObjectWriter writer = OM.writerFor(ImportConfig.class);
+				ObjectReader reader = OM.readerFor(ImportConfig.class);
+				Path configIn = Paths.get(configFile);
+				ImportConfig config = reader.readValue(configIn.toFile());
+				String fieldName = config.getConfigFieldMappings()
+					.get(ScriptedFieldConversionConstants.CSV_HEADER_CONVERTED_VALUE)
+					.get(ScriptedFieldConversionConstants.JIRA_FIELD);
+				if (DataConversion.getGlobalMappings().get(ObjectType.CUSTOM_FIELD)
+						.containsKey(fieldName)) {
+					String fieldId = DataConversion.getGlobalMappings().get(ObjectType.CUSTOM_FIELD)
+							.get(fieldName);
+					config.getConfigFieldMappings()
+						.get(ScriptedFieldConversionConstants.CSV_HEADER_CONVERTED_VALUE)
+						.put(	ScriptedFieldConversionConstants.JIRA_FIELD, 
+								fieldId);
+					Path configOut = configIn.getParent().resolve(REMAPPED + configIn.getFileName());
+					writer.writeValue(configOut.toFile(), config);
+					Log.info(LOGGER, "Config file updated");
+				} else {
+					Log.info(LOGGER, "Custom field mapping cannot be found, config file unchanged");
+				}
+			} catch (Exception ex) {
+				Log.error(LOGGER, "Error proxessing config file", ex);
+			}
 			Log.info(LOGGER, "Processing CSV file: " + csvFile);
 			// Parse CSV file
 			CSVFormat writeFormat = CSVFormat.Builder.create()
@@ -161,7 +223,7 @@ public class CSVMapping {
 					.setSkipHeaderRecord(true)
 					.build();
 			Path csvPath = Paths.get(csvFile);
-			Path outPath = csvPath.getParent().resolve("Remapped_" + csvPath.getFileName());
+			Path outPath = csvPath.getParent().resolve(REMAPPED + csvPath.getFileName());
 			try (	FileWriter fw = new FileWriter(outPath.toFile());
 					CSVPrinter printer = new CSVPrinter(fw, writeFormat); 
 					FileReader fr = new FileReader(csvPath.toFile());

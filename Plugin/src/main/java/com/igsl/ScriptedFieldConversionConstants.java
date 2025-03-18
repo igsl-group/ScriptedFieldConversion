@@ -11,8 +11,11 @@ public class ScriptedFieldConversionConstants {
 	
 	public static final String CSV_HEADER_DATA_CONVERSION = "DataConversion";
 	public static final String CSV_HEADER_CONVERTED_VALUE = "Converted Value";
+	public static final String CSV_HEADER_FIELD_NAME = "Field Name";
 	public static final String CSV_HEADER_ISSUE_KEY = "Issue Key";
 
+	public static final String JIRA_FIELD = "jira.field";
+	
 	public static final List<String> CSV_HEADERS = Arrays.asList(
 		"Project Key",
 		"Project Name", 
@@ -21,7 +24,7 @@ public class ScriptedFieldConversionConstants {
 		CSV_HEADER_ISSUE_KEY,
 		"Issue Type", 
 		"Field Id",
-		"Field Name",
+		CSV_HEADER_FIELD_NAME,
 		"Field Value",
 		CSV_HEADER_DATA_CONVERSION,
 		CSV_HEADER_CONVERTED_VALUE

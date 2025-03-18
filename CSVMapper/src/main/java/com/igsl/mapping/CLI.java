@@ -41,9 +41,18 @@ public class CLI {
 			.required()
 			.build();
 	
+	public static Option OPTION_CONFIG = Option.builder()
+			.desc("Import configuration file to process")
+			.option("c")
+			.longOpt("config")
+			.hasArg()
+			.required()
+			.build();
+	
 	public static Options OPTIONS_MAIN = new Options()
 			.addOption(OPTION_API_TOKEN)
 			.addOption(OPTION_CSV)
+			.addOption(OPTION_CONFIG)
 			.addOption(OPTION_EMAIL)
 			.addOption(OPTION_HOST);
 	
