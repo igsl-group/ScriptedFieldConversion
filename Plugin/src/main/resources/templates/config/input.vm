@@ -4,6 +4,47 @@
 <meta name="decorator" content="atl.admin" />
 <meta name="admin.active.section" content="plugin-admin-config-link" />
 <style type="text/css">
+
+/* For a nice-looking slider toggle */
+.toggle {
+  position: relative;
+  display: inline-block;
+  width: 40px;
+  height: 20px;
+}
+.toggle input {
+  display: none;
+}
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #333;
+  transition: 0.4s;
+  border-radius: 30px;
+}
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 20px;
+  width: 20px;
+  left: 0px;
+  bottom: 0px;
+  background-color: #FFF;
+  transition: 0.4s;
+  border-radius: 50%;
+}
+input:checked + .slider {
+  background-color: #060;
+}
+input:checked + .slider:before {
+  transform: translateX(20px);
+}
+
+
 .inline {
 	display: inline;
 }
@@ -96,9 +137,134 @@ div.Scripted, div.Replacement {
 		$('select[name="screenAction"]').val("none");
 		$('select[name="dataAction"]').val("none");
 	}
+	
+	function setJobValue(node, selector, value) {
+		node.querySelectorAll(selector).forEach(function(n) {
+			n.value = value;
+		});
+	}
+
+	function setJobText(node, selector, value) {
+		node.querySelectorAll(selector).forEach(function(n) {
+			n.innerText = value;
+		});
+	}
+
+	function setJobHtml(node, selector, value) {
+		node.querySelectorAll(selector).forEach(function(n) {
+			n.innerHTML = value;
+		});
+	}
+
+	function updateJobStatus() {
+		var tbody = document.getElementById("JobTable");
+		const restCall = async () => {
+			console.log("Calling REST");
+			var response = await fetch('/jira/rest/ScriptedFieldConversion/latest/getAllJobEntity', {
+		    	method: 'GET',
+			    headers: {
+			    	'Content-Type': 'application/json'
+			    }
+			});
+			const list = await response.json();
+			console.log("JSON: ");
+			console.log(list);
+			var stillRunning = false;
+			if (list.length == 0) {
+				var clone = document.getElementById("EmptyJobRow").content.cloneNode(true);
+				tbody.replaceChildren(clone);
+			} else {
+				tbody.replaceChildren();
+				for (var idx in list) {
+					var clone = document.getElementById("JobRow").content.cloneNode(true);
+					// Set data
+					setJobText(clone, "td#scriptedFieldId", list[idx].scriptedFieldId);
+					setJobText(clone, "td#jobId", list[idx].jobId);
+					setJobText(clone, "td#action", list[idx].action);
+					setJobText(clone, "td#status", (list[idx].running? "Running" : "Stopped"));
+					stillRunning = stillRunning || (list[idx].running && list[idx].endDate != null);
+					setJobText(clone, "td#startDate", list[idx].startDate);
+					setJobText(clone, "td#endDate", list[idx].endDate);
+					if (list[idx].currentStatus) {
+						setJobText(clone, "td#currentStatus", list[idx].currentStatus);
+					} else {
+						setJobText(clone, "td#currentStatus", "");
+					}
+					if (list[idx].message) {
+						setJobHtml(clone, "textarea#message", list[idx].message);
+					} else {
+						setJobHtml(clone, "textarea#message", "");
+					}
+					setJobValue(clone, "input#jobId", list[idx].ID);
+					// Add to tbody
+					tbody.appendChild(clone);
+				}
+			}
+			document.getElementById("lastUpdated").innerText = "Last Updated: " + new Date();
+			if (!stillRunning) {
+				stopRefresh();
+			}
+		}
+		restCall();
+	}
+
+	var refreshJob = null;
+	
+	function stopRefresh() {
+		$("input#autoRefresh").prop("checked", false);
+		if (refreshJob) {
+			clearInterval(refreshJob);
+			refreshJob = null;
+		}
+	}
+	
+	function autoRefresh() {
+		var enabled = $("input#autoRefresh").is(":checked");
+		if (refreshJob) {
+			clearInterval(refreshJob);
+			refreshJob = null;
+		}
+		if (enabled) {
+			refreshJob = setInterval(updateJobStatus, 5000);
+		}
+	}
 </script>
 </head>
 <body>
+
+	<!-- Template for job table construction -->
+	<template id="EmptyJobRow">
+		<tr>
+			<td colspan="100%">No background job found</td>
+		</tr>
+	</template>
+	<template id="JobRow">
+		<tr>
+			<td id="scriptedFieldId"></td>
+			<td id="jobId"></td>
+			<td id="action"></td>
+			<td id="status"></td>
+			<td id="startDate"></td>
+			<td id="endDate"></td>
+			<td id="currentStatus"></td>
+			<td><textarea id="message" style='width:95%' rows='5'></textarea></td>
+			<td>
+				<form 	class='ScriptedFieldConversion' 
+						method='POST' 
+						action='ScriptedFieldConversion!download.jspa'>
+					<input id="jobId" type='hidden' name='id' value=''/>
+					<button type='submit'>Download</button>
+				</form>
+				<form 	class='ScriptedFieldConversion' 
+						method='POST'
+						action='ScriptedFieldConversion!delete.jspa'>
+					<input id="jobId" type='hidden' name='id' value=''/>
+					<button type='submit'>Delete</button>
+				</form>
+			</td>
+		</tr>
+	</template>
+
 	<!-- 
 	<h3>Messasge: </h3>
 	#set ($newLine = "
@@ -478,11 +644,12 @@ div.Scripted, div.Replacement {
 				<th>Status</th>
 				<th>Start Date</th>
 				<th>End Date</th>
+				<th>Processing Status</th>
 				<th width="50%">Message</th>
 				<th>Actions</th>
 			</tr>
 		</thead>
-		<tbody>
+		<tbody id="JobTable">
 			#set ($jobEntityList = $action.getAllJobEntity())
 			#if ($jobEntityList.size() == 0)
 				<tr>
@@ -503,6 +670,7 @@ div.Scripted, div.Replacement {
 						</td>
 						<td>$!{jobEntity.getStartDate()}</td>
 						<td>$!{jobEntity.getEndDate()}</td>
+						<td>$!{jobEntity.getCurrentStatus()}</td>
 						<td>
 							<textarea style="width: 95%" rows="5">$!{jobEntity.getMessage()}</textarea>
 						</td>
@@ -528,12 +696,19 @@ div.Scripted, div.Replacement {
 		</tbody>
 		<tfoot>
 			<tr>
+				<td id="lastUpdated" colspan="100%"></td>
+			</tr>
+			<tr>
 				<td colspan="100%">
-					<form 	class="inline ScriptedFieldConversion" 
-							method="POST" 
-							action="ScriptedFieldConversion.jspa">
-						<input type="submit" value="Refresh"/>
-					</form>
+					<span style="font-style: bold; font-size: 1.5em">Auto-refresh</span>
+					<label class="toggle">
+						#if ($action.isAutoRefresh())
+							<input checked="checked" type="checkbox" id="autoRefresh" onchange="autoRefresh()" />
+						#else
+							<input type="checkbox" id="autoRefresh" onchange="autoRefresh()" />
+						#end
+						<span class="slider"></span>
+					</label>
 					<form 	class="inline ScriptedFieldConversion"
 							method="POST" 
 							action="ScriptedFieldConversion!deleteAll.jspa">
@@ -580,6 +755,10 @@ div.Scripted, div.Replacement {
 				e.preventDefault();
 		  	}
 		}
+		// Start auto-refresh if session data says so
+		#if ($action.isAutoRefresh())
+			autoRefresh();
+		#end
 	</script>
 </body>
 </html>

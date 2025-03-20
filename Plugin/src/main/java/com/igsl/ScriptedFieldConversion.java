@@ -148,6 +148,9 @@ public class ScriptedFieldConversion extends JiraWebActionSupport {
 	/**
 	 * Exposes data for velocity template
 	 */
+	public boolean isAutoRefresh() {
+		return sessionData.isAutoRefresh();
+	}
 	public DataAction[] getAllDataActions() {
 		return DataAction.values();
 	}
@@ -304,6 +307,7 @@ public class ScriptedFieldConversion extends JiraWebActionSupport {
 		fetchCustomFields();
 		fetchScriptedFields();	// This will not purge missing scripted fields
 		fetchUsedInScreens();
+		// Update data
 	}
 
 	public String doInit() throws Exception {
@@ -509,7 +513,7 @@ public class ScriptedFieldConversion extends JiraWebActionSupport {
 		}
 	}
 	
-	public static String getJql(ApplicationUser user, DataRow row) {
+	public static String getJql(ApplicationUser user, DataRow row) throws Exception {
 		String baseJql = "";
 		if (row.getProjects() != null && !row.getProjects().isEmpty()) {
 			baseJql = "project in (" + row.getProjects() + ") ";
@@ -530,8 +534,7 @@ public class ScriptedFieldConversion extends JiraWebActionSupport {
 			jql = baseJql;
 		}
 		if (jql.isEmpty()) {
-			// If no project keys specified, target everything with a non-blank jql
-			jql = "project is not empty";
+			throw new Exception("Field does not support IS NOT EMPTY and no project keys defined");
 		}
 		return jql;
 	}
@@ -668,6 +671,8 @@ public class ScriptedFieldConversion extends JiraWebActionSupport {
 		fetchProjects();
 		fetchCustomFields();
 		fetchUsedInScreens();
+		// Turn on auto refresh
+		sessionData.setAutoRefresh(true);
 		saveSession();
 		return JiraWebActionSupport.INPUT;
 	}
@@ -677,6 +682,9 @@ public class ScriptedFieldConversion extends JiraWebActionSupport {
 		for (JobEntity entity : Job.loadAllJobEntity()) {
 			Job.deleteJobEntity(entity);
 		}
+		// Turn off auto refresh
+		sessionData.setAutoRefresh(false);
+		saveSession();
 		return JiraWebActionSupport.INPUT;
 	}
 	

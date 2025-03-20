@@ -74,6 +74,7 @@ public class ExportDataJob extends Job {
 					headers.delete(0, 1);	// Remove initial comma
 					zos.write(headers.toString().getBytes());
 					for (Issue issue : searchResult.getResults()) {
+						setCurrentStatus("Processing issue " + issue.getKey());
 						// Export data to CSV
 						// Importing CSV requires project key, name, type, summary and issue key
 						String projectKey = issue.getProjectObject().getKey();
@@ -95,16 +96,20 @@ public class ExportDataJob extends Job {
 								try {
 									convertedFieldValue = conv.convert(issue, fieldValue);
 									Log.debug(LOGGER, 
-											"Value converted by " + dataRow.getDataConversionType() + 
+											"Issue " + issue.getKey() + 
+											" Value converted by " + dataRow.getDataConversionType() + 
 											" From: " + fieldValue + 
 											" To: " + convertedFieldValue);
 								} catch (Exception ex) {
 									appendMessage(
-											"Unable to convert value using " + dataRow.getDataConversionType() + 
+											"Issue " + issue.getKey() + 
+											" Unable to convert value using " + dataRow.getDataConversionType() + 
 											": " + ex.getMessage());
 								}
 							} else {
-								appendMessage("Unrecognized data conversion: " + dataRow.getDataConversionType());
+								appendMessage(
+										"Issue " + issue.getKey() + 
+										" Unrecognized data conversion: " + dataRow.getDataConversionType());
 							}
 							break;
 						}
@@ -140,6 +145,7 @@ public class ExportDataJob extends Job {
 								DOUBLE_QUOTE + fieldValueString + DOUBLE_QUOTE + "," + 
 								DOUBLE_QUOTE + dataRow.getDataConversionType().getValue() + DOUBLE_QUOTE + "," + 
 								DOUBLE_QUOTE + convertedFieldValueString + DOUBLE_QUOTE + NEWLINE).getBytes());
+						setCurrentStatus("Issue " + issue.getKey() + " processed");
 					}	// For each issue found
 					zos.closeEntry();
 				} catch (Exception ex) {

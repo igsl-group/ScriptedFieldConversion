@@ -24,11 +24,20 @@
 		</bundle-instructions>
 	</plugin-info>
 
+    <!-- REST APIs -->
+	<rest key="RestApi" path="/ScriptedFieldConversion" version="1.0">
+		<description>ScriptedFieldConversion REST APIs</description>
+		<!-- Package(s) to scan for REST APIs -->
+		<package>com.igsl.rest</package>
+	</rest>
+
+	<!-- Menu section under System|Manage Apps menu -->
 	<web-section key="ScriptedFieldConversionSection"
 		location="admin_plugins_menu">
 		<label key="Scripted Field Conversion" />
 	</web-section>
 
+	<!-- Menu item under menu section -->
 	<web-item key="ScriptedFieldConversionMenu"
 		name="Scripted Field Conversion"
 		section="admin_plugins_menu/ScriptedFieldConversionSection"
@@ -39,6 +48,7 @@
 		</link>
 	</web-item>
 
+	<!-- Handler for menu item -->
 	<webwork1 key="ScriptedFieldConversion"
 		name="Scripted Field Conversion" class="java.lang.Object">
 		<description>Scripted Field Conversion</description>

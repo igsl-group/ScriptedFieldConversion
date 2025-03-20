@@ -130,13 +130,31 @@ public abstract class Job implements JobRunner {
 	}
 	
 	/**
-	 * Append message to buffer
+	 * Set current status and save.
+	 */
+	protected final void setCurrentStatus(String msg) {
+		this.jobEntity.setCurrentStatus(msg);
+		save();
+	}
+	
+	/**
+	 * Append message to buffer, and update database immediately.
 	 */
 	protected final void appendMessage(String msg) {
+		appendMessage(msg, true);
+	}
+	
+	/**
+	 * Append message to buffer, with option to save immediately or not.
+	 */
+	protected final void appendMessage(String msg, boolean save) {
 		if (this.jobEntity.getMessage() == null) {
 			this.jobEntity.setMessage(msg + NEWLINE);
 		} else {
 			this.jobEntity.setMessage(this.jobEntity.getMessage() + msg + NEWLINE);
+		}
+		if (save) {
+			save();
 		}
 	}
 

@@ -2,14 +2,16 @@ package com.igsl.job;
 
 import java.util.Date;
 
-import net.java.ao.Accessor;
 import net.java.ao.Entity;
-import net.java.ao.Mutator;
 import net.java.ao.schema.StringLength;
 import net.java.ao.schema.Table;
 
 @Table("JobEntity")
 public interface JobEntity extends Entity {
+	
+	// currentStatus
+	public String getCurrentStatus();
+	public void setCurrentStatus(String currentStatus);
 	
 	// scriptedFieldId
 	public String getScriptedFieldId();

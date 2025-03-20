@@ -17,7 +17,6 @@ import org.apache.log4j.Logger;
 import com.atlassian.jira.issue.fields.CustomField;
 import com.atlassian.jira.project.Project;
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.igsl.Log;
 import com.igsl.action.ActionHandler;
@@ -50,6 +49,8 @@ public class SessionData {
 	private ByteArrayOutputStream zipBytes = null;
 	@JsonIgnore 
 	private ZipOutputStream zipOutputStream = null;
+	@JsonIgnore 
+	private boolean autoRefresh;
 	
 	public void setupExportData() {
 		zipBytes = new ByteArrayOutputStream();
@@ -163,5 +164,11 @@ public class SessionData {
 	}
 	public ZipOutputStream getZipOutputStream() {
 		return zipOutputStream;
+	}
+	public boolean isAutoRefresh() {
+		return autoRefresh;
+	}
+	public void setAutoRefresh(boolean autoRefresh) {
+		this.autoRefresh = autoRefresh;
 	}
 }

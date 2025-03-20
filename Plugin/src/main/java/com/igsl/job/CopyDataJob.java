@@ -45,45 +45,50 @@ public class CopyDataJob extends Job {
 			appendMessage("Scripted field or replacement field not found");
 			return JobRunnerResponse.failed(this.getJobEntity().getMessage());
 		}
-		String jql = ScriptedFieldConversion.getJql(user, dataRow);
-		appendMessage("JQL: " + jql);
-		SearchResults<Issue> searchResult = ScriptedFieldConversion.searchIssue(
-				this.user, dataRow, jql);
-		if (searchResult != null) {
-			appendMessage("Issues found: " + searchResult.getResults().size());
-			int updatedCount = 0;
-			for (Issue issue : searchResult.getResults()) {
-				try {
-					MutableIssue mi = (MutableIssue) ISSUE_MANAGER.getIssueObject(issue.getId());
-					// Get value
-					Object value = mi.getCustomFieldValue(scriptedField);
-					// Convert value if required
-					switch (dataRow.getDataConversionType()) {
-					case NONE:
-						break;
-					default: 
-						value = dataRow.getDataConversionType().getImplementation().convert(mi, value);
-						break;
+		try {
+			String jql = ScriptedFieldConversion.getJql(user, dataRow);
+			appendMessage("JQL: " + jql);
+			SearchResults<Issue> searchResult = ScriptedFieldConversion.searchIssue(
+					this.user, dataRow, jql);
+			if (searchResult != null) {
+				appendMessage("Issues found: " + searchResult.getResults().size());
+				int updatedCount = 0;
+				for (Issue issue : searchResult.getResults()) {
+					try {
+						MutableIssue mi = (MutableIssue) ISSUE_MANAGER.getIssueObject(issue.getId());
+						// Get value
+						Object value = mi.getCustomFieldValue(scriptedField);
+						// Convert value if required
+						switch (dataRow.getDataConversionType()) {
+						case NONE:
+							break;
+						default: 
+							value = dataRow.getDataConversionType().getImplementation().convert(mi, value);
+							break;
+						}
+						// Store value into replacement field
+						mi.setCustomFieldValue(targetField, value);
+						UpdateIssueRequest updateReq = UpdateIssueRequest.builder()
+								.eventDispatchOption(EventDispatchOption.DO_NOT_DISPATCH)
+								.build();
+						if (ISSUE_MANAGER.updateIssue(
+								ComponentAccessor.getJiraAuthenticationContext().getLoggedInUser(), 
+								mi, updateReq) != null) {
+							updatedCount++;
+							appendMessage("Issue " + mi.getKey() + " updated");
+						}
+					} catch (Exception ex) {
+						appendMessage("Failed to update issue " + issue.getKey() + ": " + ex.getMessage());
+						Log.error(LOGGER, "Failed to update issue " + issue.getKey(), ex);
 					}
-					// Store value into replacement field
-					mi.setCustomFieldValue(targetField, value);
-					UpdateIssueRequest updateReq = UpdateIssueRequest.builder()
-							.eventDispatchOption(EventDispatchOption.DO_NOT_DISPATCH)
-							.build();
-					if (ISSUE_MANAGER.updateIssue(
-							ComponentAccessor.getJiraAuthenticationContext().getLoggedInUser(), 
-							mi, updateReq) != null) {
-						updatedCount++;
-						appendMessage("Issue " + mi.getKey() + " updated");
-					}
-				} catch (Exception ex) {
-					appendMessage("Failed to update issue " + issue.getKey() + ": " + ex.getMessage());
-					Log.error(LOGGER, "Failed to update issue " + issue.getKey(), ex);
 				}
+				appendMessage("Issues updated: " + updatedCount);
+			} else {
+				appendMessage("No issues found");
 			}
-			appendMessage("Issues updated: " + updatedCount);
-		} else {
-			appendMessage("No issues found");
+		} catch (Exception ex) {
+			appendMessage("Failed to copy data: " + ex.getMessage());
+			Log.error(LOGGER, "Failed to write copy data", ex);
 		}
 		stop();
 		return JobRunnerResponse.success(this.getJobEntity().getMessage());
