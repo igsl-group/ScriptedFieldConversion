@@ -140,19 +140,31 @@ div.Scripted, div.Replacement {
 	
 	function setJobValue(node, selector, value) {
 		node.querySelectorAll(selector).forEach(function(n) {
-			n.value = value;
+			if (value) {
+				n.value = value;
+			} else {
+				n.value = "";
+			}
 		});
 	}
 
 	function setJobText(node, selector, value) {
 		node.querySelectorAll(selector).forEach(function(n) {
-			n.innerText = value;
+			if (value) {
+				n.innerText = value;
+			} else {
+				n.innerText = "";
+			}
 		});
 	}
 
 	function setJobHtml(node, selector, value) {
 		node.querySelectorAll(selector).forEach(function(n) {
-			n.innerHTML = value;
+			if (value) {
+				n.innerHTML = value;
+			} else {
+				n.innerHTML = "";
+			}
 		});
 	}
 
@@ -160,7 +172,7 @@ div.Scripted, div.Replacement {
 		var tbody = document.getElementById("JobTable");
 		const restCall = async () => {
 			console.log("Calling REST");
-			var response = await fetch('/jira/rest/ScriptedFieldConversion/latest/getAllJobEntity', {
+			var response = await fetch('${action.getContextPath()}/rest/ScriptedFieldConversion/latest/getAllJobEntity', {
 		    	method: 'GET',
 			    headers: {
 			    	'Content-Type': 'application/json'
@@ -182,19 +194,11 @@ div.Scripted, div.Replacement {
 					setJobText(clone, "td#jobId", list[idx].jobId);
 					setJobText(clone, "td#action", list[idx].action);
 					setJobText(clone, "td#status", (list[idx].running? "Running" : "Stopped"));
-					stillRunning = stillRunning || (list[idx].running && list[idx].endDate != null);
+					stillRunning = stillRunning || (list[idx].running || list[idx].endDate == null);
 					setJobText(clone, "td#startDate", list[idx].startDate);
 					setJobText(clone, "td#endDate", list[idx].endDate);
-					if (list[idx].currentStatus) {
-						setJobText(clone, "td#currentStatus", list[idx].currentStatus);
-					} else {
-						setJobText(clone, "td#currentStatus", "");
-					}
-					if (list[idx].message) {
-						setJobHtml(clone, "textarea#message", list[idx].message);
-					} else {
-						setJobHtml(clone, "textarea#message", "");
-					}
+					setJobText(clone, "td#currentStatus", list[idx].currentStatus);
+					setJobHtml(clone, "textarea#message", list[idx].message);
 					setJobValue(clone, "input#jobId", list[idx].ID);
 					// Add to tbody
 					tbody.appendChild(clone);

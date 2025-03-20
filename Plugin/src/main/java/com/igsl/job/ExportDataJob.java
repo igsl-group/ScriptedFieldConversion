@@ -1,13 +1,21 @@
 package com.igsl.job;
 
 import java.io.ByteArrayOutputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.text.SimpleDateFormat;
 import java.util.Base64;
+import java.util.Date;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 import org.apache.log4j.Logger;
 
 import com.atlassian.jira.component.ComponentAccessor;
+import com.atlassian.jira.config.util.JiraHome;
 import com.atlassian.jira.issue.CustomFieldManager;
 import com.atlassian.jira.issue.Issue;
 import com.atlassian.jira.issue.fields.CustomField;
@@ -28,6 +36,7 @@ public class ExportDataJob extends Job {
 
 	private static final ObjectMapper OM = new ObjectMapper();
 	private static final Logger LOGGER = Logger.getLogger(ExportDataJob.class);
+	private static final SimpleDateFormat SDF = new SimpleDateFormat("yyyyMMdd-HHmmss");
 	
 	public ExportDataJob(JobEntity entity) {
 		super(entity);
@@ -37,17 +46,37 @@ public class ExportDataJob extends Job {
 	}
 
 	private static final CustomFieldManager CUSTOM_FIELD_MANAGER = ComponentAccessor.getCustomFieldManager();
+	private static final JiraHome JIRA_HOME = ComponentAccessor.getComponent(JiraHome.class);
 	
 	@Override
 	public JobRunnerResponse runJob(JobRunnerRequest request) {
 		start();
 		appendMessage("Exporting data");
+		// Create directory if not already present
+		Path exportDir = Paths.get(JIRA_HOME.getExportDirectory().toString(), "ScriptedFieldConversion");
+		if (!Files.exists(exportDir)) {
+			try {
+				Files.createDirectories(exportDir);
+			} catch (IOException e) {
+				appendMessage(
+						"Unable to create export subdirectory " + exportDir + ": " + 
+						e.getMessage());
+				stop();
+				return JobRunnerResponse.failed(
+							"Unable to create export subdirectory " + exportDir + ": " + 
+							e.getMessage());
+			}
+		}
+		Path outputFile = exportDir.resolve(
+				this.getJobEntity().getScriptedFieldId() + 
+				"." + SDF.format(new Date()) + 
+				".zip");
 		CustomField scriptedField = CUSTOM_FIELD_MANAGER.getCustomFieldObject(this.getJobEntity().getScriptedFieldId());
 		if (scriptedField == null) {
 			appendMessage("Scripted field not found");
 		} else {
-			try (	ByteArrayOutputStream baos = new ByteArrayOutputStream(); 
-					ZipOutputStream zos = new ZipOutputStream(baos)) {
+			try (	FileOutputStream fos = new FileOutputStream(outputFile.toFile()); 
+					ZipOutputStream zos = new ZipOutputStream(fos)) {
 				// Add configuration file
 				zos.putNextEntry(new ZipEntry("Config.json"));
 				zos.write(OM.writeValueAsBytes(new ImportConfig(scriptedField.getName())));
@@ -73,6 +102,7 @@ public class ExportDataJob extends Job {
 					headers.append(NEWLINE);
 					headers.delete(0, 1);	// Remove initial comma
 					zos.write(headers.toString().getBytes());
+					int processedCount = 0;
 					for (Issue issue : searchResult.getResults()) {
 						setCurrentStatus("Processing issue " + issue.getKey());
 						// Export data to CSV
@@ -145,7 +175,8 @@ public class ExportDataJob extends Job {
 								DOUBLE_QUOTE + fieldValueString + DOUBLE_QUOTE + "," + 
 								DOUBLE_QUOTE + dataRow.getDataConversionType().getValue() + DOUBLE_QUOTE + "," + 
 								DOUBLE_QUOTE + convertedFieldValueString + DOUBLE_QUOTE + NEWLINE).getBytes());
-						setCurrentStatus("Issue " + issue.getKey() + " processed");
+						processedCount++;
+						setCurrentStatus(processedCount + " issue(s) processed");
 					}	// For each issue found
 					zos.closeEntry();
 				} catch (Exception ex) {
@@ -154,7 +185,7 @@ public class ExportDataJob extends Job {
 				}
 				zos.close();
 				// Store output
-				String download = Base64.getEncoder().encodeToString(baos.toByteArray());
+				String download = outputFile.toString();
 				getJobEntity().setDownload(download);
 				appendMessage("Download prepared");
 			} catch (Exception ex) {

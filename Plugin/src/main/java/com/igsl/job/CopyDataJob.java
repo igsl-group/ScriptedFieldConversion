@@ -75,14 +75,15 @@ public class CopyDataJob extends Job {
 								ComponentAccessor.getJiraAuthenticationContext().getLoggedInUser(), 
 								mi, updateReq) != null) {
 							updatedCount++;
-							appendMessage("Issue " + mi.getKey() + " updated");
+							setCurrentStatus(updatedCount + " issue(s) processed");
+						} else {
+							appendMessage("Failed to update issue " + issue.getKey());
 						}
 					} catch (Exception ex) {
 						appendMessage("Failed to update issue " + issue.getKey() + ": " + ex.getMessage());
 						Log.error(LOGGER, "Failed to update issue " + issue.getKey(), ex);
 					}
 				}
-				appendMessage("Issues updated: " + updatedCount);
 			} else {
 				appendMessage("No issues found");
 			}

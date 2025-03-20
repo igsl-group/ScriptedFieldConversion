@@ -5,6 +5,8 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.io.Serializable;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -12,7 +14,6 @@ import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Base64;
 import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
@@ -148,6 +149,9 @@ public class ScriptedFieldConversion extends JiraWebActionSupport {
 	/**
 	 * Exposes data for velocity template
 	 */
+	public String getContextPath() {
+		return getHttpRequest().getContextPath();
+	}
 	public boolean isAutoRefresh() {
 		return sessionData.isAutoRefresh();
 	}
@@ -677,10 +681,21 @@ public class ScriptedFieldConversion extends JiraWebActionSupport {
 		return JiraWebActionSupport.INPUT;
 	}
 	
+	private void deleteJobEntity(JobEntity entity) {
+		if (entity.getDownload() != null) {
+			try {
+				Files.delete(Paths.get(entity.getDownload()));
+			} catch (Exception ex) {
+				Log.warn(LOGGER, "Failed to delete exported file " + entity.getDownload(), ex);
+			}
+		}
+		Job.deleteJobEntity(entity);
+	}
+	
 	public String doDeleteAll() throws Exception {
 		loadSession();
 		for (JobEntity entity : Job.loadAllJobEntity()) {
-			Job.deleteJobEntity(entity);
+			deleteJobEntity(entity);
 		}
 		// Turn off auto refresh
 		sessionData.setAutoRefresh(false);
@@ -694,7 +709,7 @@ public class ScriptedFieldConversion extends JiraWebActionSupport {
 		String id = req.getParameter("id");
 		JobEntity entity = Job.loadJobEntity(id);
 		if (entity != null) {
-			Job.deleteJobEntity(entity);
+			deleteJobEntity(entity);
 		}
 		return JiraWebActionSupport.INPUT;
 	}
@@ -711,11 +726,12 @@ public class ScriptedFieldConversion extends JiraWebActionSupport {
 				resp.setHeader("Content-Type", "application/zip");
 				resp.setHeader("Content-Disposition", "attachment; filename=\"" + entity.getScriptedFieldId() + ".zip\""); 
 				try (OutputStream out = resp.getOutputStream()) {
-					String b64 = entity.getDownload();
-					out.write(Base64.getDecoder().decode(b64));
+					String path = entity.getDownload();
+					Files.copy(Paths.get(path), out);
 				}
 				return JiraWebActionSupport.SUCCESS;
 			} catch (Exception ex) {
+				Log.error(LOGGER, "Failed generating download", ex);
 				return JiraWebActionSupport.INPUT;
 			}
 		}
