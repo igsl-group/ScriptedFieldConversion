@@ -355,7 +355,12 @@ public class ScriptedFieldConversion extends JiraWebActionSupport {
 	private void createReplacementField(DataRow row, CustomField originalField) {
 		// Create replacement field based on template/class
 		ScriptedField scriptedField = row.getScriptedField();
-		ScriptedFieldType scriptedFieldType = ScriptedFieldType.parse(scriptedField.getModelTemplate());
+		ScriptedFieldType scriptedFieldType = ScriptedFieldType.parse(scriptedField.getType());
+		if (scriptedFieldType == null || scriptedFieldType.getHelper() == null) {
+			row.getActionLog().getFieldAction().add(
+					"Replacement field is not supported for this scripted field type");
+			return;
+		}
 		// Determine custom field type and searcher
 		CustomFieldType<?, ?> cfType = getCustomFieldType(scriptedFieldType.getHelper());
 		CustomFieldSearcher cfSearcher = getCustomFieldSearcher(scriptedFieldType.getHelper());

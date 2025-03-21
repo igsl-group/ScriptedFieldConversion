@@ -16,7 +16,7 @@ import com.atlassian.jira.issue.Issue;
  * So we must convert the data on our own and import the converted values in Cloud.
  * 
  * Two types are handled:
- * 1. Fix Tickets - Scripted field is multi-issue picker. Need to convert to linked issues.
+ * 1. Issue Picker - Scripted field stores issue objects. Need to convert to comma-delimited issue keys.
  * 2. Quote Response/s - Scripted field is HTML table. Need to convert to markdown.
  */
 public abstract class DataConversion {

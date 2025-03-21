@@ -31,6 +31,7 @@ import com.igsl.action.DataAction;
 import com.igsl.dataconversion.DataConversion;
 import com.igsl.importconfig.ImportConfig;
 import com.igsl.session.DataRow;
+import com.igsl.wrapper.JiraObjectWrapper;
 
 public class ExportDataJob extends Job {
 
@@ -104,7 +105,6 @@ public class ExportDataJob extends Job {
 					zos.write(headers.toString().getBytes());
 					int processedCount = 0;
 					for (Issue issue : searchResult.getResults()) {
-						setCurrentStatus("Processing issue " + issue.getKey());
 						// Export data to CSV
 						// Importing CSV requires project key, name, type, summary and issue key
 						String projectKey = issue.getProjectObject().getKey();
@@ -148,7 +148,7 @@ public class ExportDataJob extends Job {
 							if (fieldValue instanceof String) {
 								fieldValueString = String.valueOf(fieldValue);
 							} else {
-								fieldValueString = OM.writeValueAsString(fieldValue);
+								fieldValueString = OM.writeValueAsString(JiraObjectWrapper.wrap(fieldValue));
 							}
 						}
 						String convertedFieldValueString = "";

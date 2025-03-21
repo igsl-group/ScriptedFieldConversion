@@ -6,6 +6,7 @@ import com.igsl.action.ActionHandler;
 
 public enum DataConversionType implements Action<DataConversionType> {
 	NONE("N/A", "", null), 
+	ISSUE_PICKER(IssuePicker.NAME, IssuePicker.DESC, new IssuePicker()),
 	QUOTE_RESPONSES(QuoteResponses.NAME, QuoteResponses.DESC, new QuoteResponses());	
 	private String name;
 	private String desc;

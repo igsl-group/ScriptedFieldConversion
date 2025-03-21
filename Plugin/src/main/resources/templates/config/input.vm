@@ -168,6 +168,12 @@ div.Scripted, div.Replacement {
 		});
 	}
 
+	function disableButton(node, selector, disabled) {
+		node.querySelectorAll(selector).forEach(function(n) {
+			n.disabled = disabled;
+		});
+	}
+	
 	function updateJobStatus() {
 		var tbody = document.getElementById("JobTable");
 		const restCall = async () => {
@@ -199,6 +205,11 @@ div.Scripted, div.Replacement {
 					setJobText(clone, "td#endDate", list[idx].endDate);
 					setJobText(clone, "td#currentStatus", list[idx].currentStatus);
 					setJobHtml(clone, "textarea#message", list[idx].message);
+					if (list[idx].running || list[idx].endDate == null) {
+						disableButton(clone, "button", true);
+					} else {
+						disableButton(clone, "button", false);
+					}
 					setJobValue(clone, "input#jobId", list[idx].ID);
 					// Add to tbody
 					tbody.appendChild(clone);
@@ -684,14 +695,14 @@ div.Scripted, div.Replacement {
 										method="POST" 
 										action="ScriptedFieldConversion!download.jspa">
 									<input type="hidden" name="id" value="${jobEntity.getID()}"/>
-									<button type="submit">Download</button>
+									<button disabled="disabled" type="submit">Download</button>
 								</form>
 							#end
 							<form 	class="ScriptedFieldConversion"
 									method="POST" 
 									action="ScriptedFieldConversion!delete.jspa">
 								<input type="hidden" name="id" value="${jobEntity.getID()}"/>
-								<button type="submit">Delete</button>
+								<button disabled="disabled" type="submit">Delete</button>
 							</form>
 						</td>
 					</tr>

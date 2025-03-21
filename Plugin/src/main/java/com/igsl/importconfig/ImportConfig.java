@@ -46,7 +46,7 @@ public class ImportConfig {
 		addImportConfig("Issue Type", "issuetype");
 		addImportConfig("Project Name", "project.name");
 		addImportConfig("Project Key", "project.key");
-		addImportConfig("Issue Key", "issuekey");
+		//addImportConfig("Issue Key", "issuekey");
 		addImportConfig("Project Type", "project.type");
 		addImportConfig("Summary", "summary");
 		addImportConfig(ScriptedFieldConversionConstants.CSV_HEADER_CONVERTED_VALUE, scriptedFieldId);
