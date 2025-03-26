@@ -19,7 +19,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.igsl</groupId>
 	<artifactId>ScriptedFieldConversion</artifactId>
-	<version>0.0.6</version>
+	<version>0.0.7</version>
 
 	<organization>
 		<name>Integrated Global Solutions Limited</name>
@@ -31,6 +31,13 @@
 	<packaging>atlassian-plugin</packaging>
 
 	<dependencies>
+
+		<!-- https://mvnrepository.com/artifact/org.jsoup/jsoup -->
+		<dependency>
+			<groupId>org.jsoup</groupId>
+			<artifactId>jsoup</artifactId>
+			<version>1.19.1</version>
+		</dependency>
 
 		<!-- https://mvnrepository.com/artifact/com.atlassian.activeobjects/activeobjects-plugin -->
 		<dependency>
@@ -177,6 +184,27 @@
 
 	<build>
 		<plugins>
+		
+			<plugin>
+                <artifactId>maven-assembly-plugin</artifactId>
+                <configuration>
+                    <appendAssemblyId>false</appendAssemblyId>
+                    <descriptors>
+                        <descriptor>src/main/assembly/source.xml</descriptor>
+                    </descriptors>
+                    <finalName>${project.artifactId}-${project.version}-source</finalName>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>make-assembly</id> <!-- this is used for inheritance merges -->
+                        <phase>install</phase> <!-- append to the packaging phase. -->
+                        <goals>
+                            <goal>single</goal> <!-- goals == mojos -->
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+		
 			<!-- 
 				Create a separate JAR with main class, 
 				since there doesn't seem to be a way to do it in the plugin JAR

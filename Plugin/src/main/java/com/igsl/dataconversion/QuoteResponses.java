@@ -1,21 +1,13 @@
 package com.igsl.dataconversion;
 
-import java.io.StringReader;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.xpath.XPath;
-import javax.xml.xpath.XPathConstants;
-import javax.xml.xpath.XPathFactory;
-
-import org.w3c.dom.Document;
-import org.w3c.dom.Node;
-import org.w3c.dom.NodeList;
-import org.xml.sax.InputSource;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.select.Elements;
 
 import com.atlassian.jira.issue.Issue;
 
@@ -24,6 +16,8 @@ import com.atlassian.jira.issue.Issue;
  * 
  * In Jira server, the data is a HTML table.
  * In Jira cloud, the data is Markdown.
+ * 
+ * Switched from using DocumentBuilder to JSoup due to the data not being proper XHTML.
  */
 public class QuoteResponses extends DataConversion {
 
@@ -34,47 +28,99 @@ public class QuoteResponses extends DataConversion {
 	
 	private static final String SUBTASK_NAME = "Quote Response";
 	
-	private static final String HTML_BEGIN = "<html><body>";
-	private static final String HTML_END = "</body></html>";
+//	private static final String HTML_BEGIN = "<html><body>";
+//	private static final String HTML_END = "</body></html>";
 	
 	private static final String MARKDOWN_TABLE_HEADER = "||*Summary*||*Status*||";
+	private static final String NO_QUOTE_RESPONSE = "There are no Quote Response(s) for this issue";	
 	private static final String NEWLINE = "\r\n";
 	
 	@Override
 	public Object convert(
+			Issue issue,
+			Object sourceValue) throws Exception {
+		StringBuilder output = new StringBuilder();
+		Document doc = Jsoup.parse(String.valueOf(sourceValue));
+		Elements linkList = doc.getElementsByTag("a");
+		linkList.forEach(element -> {
+			StringBuilder row = new StringBuilder();
+			String linkURL = element.attr("href");
+			String newUrl = "";
+			Matcher matcher = PATTERN_ISSUE_URL.matcher(linkURL);
+			if (matcher.matches()) {
+				newUrl = "/browse/" + matcher.group(1);
+			}
+			String linkText = element.text();
+			Elements spanList = element.parent().parent().getElementsByTag("span");
+			String status = spanList.get(0).text();
+			row	.append(NEWLINE)
+				.append("|[")
+				.append(linkText)
+				.append("|")
+				.append(newUrl)
+				.append("]|");
+			// Get status text from under parent tr
+			if (status != null) {
+				row.append(status).append("|");
+			} else {
+				row.append("--|");
+			}
+			output.append(row);
+		});
+		if (output.length() == 0) {
+			output.insert(0, NO_QUOTE_RESPONSE + NEWLINE);
+		} else {
+			output.insert(0, MARKDOWN_TABLE_HEADER);
+			output.append(NEWLINE);	// End of table line break
+		}
+		// Create subtask URL syntax
+		// https://kcwong.atlassian.net/jira/secure/CreateSubTaskIssue.jspa?pid=10044&issuetype=10006&parentIssueId=10640
+		// The IDs remain server ids as it is impossible to map pre-JCMA
+		// The output CSV has to be mapped before import
+		output	.append("[Add new Quote Response|")
+				.append("/jira/secure/CreateSubTaskIssue.jspa?")
+				.append("pkey=").append(issue.getProjectObject().getKey())
+				.append("&issuetypeName=").append(SUBTASK_NAME)
+				.append("&parentIssueKey=").append(issue.getKey())
+				.append("]");
+		return output.toString();
+	}
+	
+	/*
+	@Override
+	public Object convert(
 			Issue issue, 
 			Object sourceValue) throws Exception {
-		/* Sample data: 
-		 * 	<table class='aui' style='margin-bottom: 8px;'>
-		 * 		<thead>
-		 * 			<tr>
-		 * 				<th style='white-space: nowrap;'>Summary</th>
-		 * 				<th style='white-space: nowrap;'>Status</th>
-		 * 			</tr>
-		 * 		</thead>
-		 * 		<tbody class='ui-sortable'>
-		 * 			<tr class='issuerow' style='display: table-row;'>
-		 * 				<td style='word-break: normal;'>
-		 * 					<a href='/browse/VMNQ-2006'>Xenith IG | Dark Fiber | SIN03 | | 25 Serango | | Terrestrial</a>
-		 *				</td>
-		 *				<td style='word-break: normal;'> 
-		 *					<span class='jira-issue-status-lozenge aui-lozenge jira-issue-status-lozenge-new aui-lozenge-subtle jira-issue-status-lozenge-max-width-short'>Ticket opened</span>
-		 *				</td>
-		 *			</tr>
-		 *		</tbody>
-		 *	</table>
-		 *	<button class='aui-button s-editor-dialog' style='margin-bottom: 12px;' onclick='JIRA.Forms.createSubtaskForm({parentIssueId: 645677}).asDialog({windowTitle:"Create Quote Response", id: "create-subtask-dialog"}).show();'>
-		 *		<span class='icon aui-icon aui-icon-small aui-iconfont-add'></span> 
-		 *		<span class='trigger-label'>Add new Quote Response</span>
-		 *	</button>
-		 *	<br />
-		 */
-		/*
-		 * Target format:
-		 * 	||*Summary*||*Status*||
-			|[Text|URL]|Text|
-			[Add new Quote Resposne|URL to create]
-		 */
+
+//		Sample data: 
+//		<table class='aui' style='margin-bottom: 8px;'>
+//			<thead>
+//				<tr>
+//					<th style='white-space: nowrap;'>Summary</th>
+//					<th style='white-space: nowrap;'>Status</th>
+//				</tr>
+//			</thead>
+//			<tbody class='ui-sortable'>
+//				<tr class='issuerow' style='display: table-row;'>
+//					<td style='word-break: normal;'>
+//						<a href='/browse/VMNQ-2006'>Xenith IG | Dark Fiber | SIN03 | | 25 Serango | | Terrestrial</a>
+//					</td>
+//					<td style='word-break: normal;'> 
+//						<span class='jira-issue-status-lozenge aui-lozenge jira-issue-status-lozenge-new aui-lozenge-subtle jira-issue-status-lozenge-max-width-short'>Ticket opened</span>
+//					</td>
+//				</tr>
+//			</tbody>
+//		</table>
+//		<button class='aui-button s-editor-dialog' style='margin-bottom: 12px;' onclick='JIRA.Forms.createSubtaskForm({parentIssueId: 645677}).asDialog({windowTitle:"Create Quote Response", id: "create-subtask-dialog"}).show();'>
+//			<span class='icon aui-icon aui-icon-small aui-iconfont-add'></span> 
+//			<span class='trigger-label'>Add new Quote Response</span>
+//		</button>
+//		<br />
+//		Target format:
+//			||*Summary*||*Status*||
+//			|[Text|URL]|Text|
+//			[Add new Quote Resposne|URL to create]
+
 		// Make data valid XHTML so it can be parsed by DocumentBuilder
 		// TODO Possibly switch to use https://jsoup.org/ for better parsing
 		sourceValue = HTML_BEGIN + sourceValue + HTML_END;
@@ -125,6 +171,7 @@ public class QuoteResponses extends DataConversion {
 				.append("]");
 		return output.toString();
 	}
+	*/
 
 	@Override
 	public Map<ObjectType, Map<String, Object>> getMappingConstraints() {

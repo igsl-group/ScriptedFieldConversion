@@ -1,8 +1,10 @@
 <html>
 <head>
 <title>Scripted Field Conversion</title>
-<meta name="decorator" content="atl.admin" />
+<meta name="decorator" content="admin" />
+<!-- 
 <meta name="admin.active.section" content="plugin-admin-config-link" />
+-->
 <style type="text/css">
 
 /* For a nice-looking slider toggle */

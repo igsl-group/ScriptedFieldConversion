@@ -37,7 +37,6 @@ import com.atlassian.jira.database.DatabaseAccessor;
 import com.atlassian.jira.database.DatabaseConnection;
 import com.atlassian.jira.exception.RemoveException;
 import com.atlassian.jira.issue.CustomFieldManager;
-import com.atlassian.jira.issue.Issue;
 import com.atlassian.jira.issue.context.GlobalIssueContext;
 import com.atlassian.jira.issue.context.JiraContextNode;
 import com.atlassian.jira.issue.customfields.CustomFieldSearcher;
@@ -49,14 +48,12 @@ import com.atlassian.jira.issue.fields.screen.FieldScreenLayoutItem;
 import com.atlassian.jira.issue.fields.screen.FieldScreenManager;
 import com.atlassian.jira.issue.fields.screen.FieldScreenTab;
 import com.atlassian.jira.issue.issuetype.IssueType;
-import com.atlassian.jira.issue.search.SearchResults;
 import com.atlassian.jira.jql.parser.JqlQueryParser;
 import com.atlassian.jira.project.Project;
 import com.atlassian.jira.project.ProjectManager;
 import com.atlassian.jira.user.ApplicationUser;
 import com.atlassian.jira.util.MessageSet;
 import com.atlassian.jira.web.action.JiraWebActionSupport;
-import com.atlassian.jira.web.bean.PagerFilter;
 import com.atlassian.plugin.spring.scanner.annotation.imports.ComponentImport;
 import com.atlassian.query.Query;
 import com.atlassian.scheduler.SchedulerService;
@@ -502,10 +499,6 @@ public class ScriptedFieldConversion extends JiraWebActionSupport {
 	}
 	
 	public String doSaveSession() throws Exception {
-		// TODO 
-		// When loading the field ids would be different.
-		// Can't rely on name either.
-		// How to load?
 		loadSession();
 		try {
 			String content = OM.writeValueAsString(sessionData);
@@ -546,20 +539,6 @@ public class ScriptedFieldConversion extends JiraWebActionSupport {
 			throw new Exception("Field does not support IS NOT EMPTY and no project keys defined");
 		}
 		return jql;
-	}
-	
-	public static SearchResults<Issue> searchIssue(ApplicationUser user, DataRow row, String jql) {
-		SearchResults<Issue> result = null;
-		try {
-			Query query = JQL_QUERY_PARSER.parseQuery(jql);
-			result = SEARCH_SERVICE.search(
-					user, 
-					query, 
-					PagerFilter.getUnlimitedFilter());
-		} catch (Exception ex) {
-			Log.error(LOGGER, "Unable to execute JQL [" + jql + "]", ex);
-		}
-		return result;
 	}
 	
 	private void copyData(HttpServletRequest req, DataRow row) {

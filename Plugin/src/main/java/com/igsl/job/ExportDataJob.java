@@ -1,14 +1,14 @@
 package com.igsl.job;
 
-import java.io.ByteArrayOutputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
-import java.util.Base64;
 import java.util.Date;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -30,6 +30,7 @@ import com.igsl.ScriptedFieldConversionConstants;
 import com.igsl.action.DataAction;
 import com.igsl.dataconversion.DataConversion;
 import com.igsl.importconfig.ImportConfig;
+import com.igsl.search.IssueSearchUtil;
 import com.igsl.session.DataRow;
 import com.igsl.wrapper.JiraObjectWrapper;
 
@@ -85,11 +86,7 @@ public class ExportDataJob extends Job {
 				// Search for issues
 				String jql = ScriptedFieldConversion.getJql(user, dataRow);
 				appendMessage("JQL: " + jql);
-				SearchResults<Issue> searchResult = ScriptedFieldConversion.searchIssue(
-						this.user,
-						this.dataRow,
-						jql);
-				appendMessage("Issues found: " + searchResult.getResults().size());
+				Stream<Issue> issues = IssueSearchUtil.streamOf(user, jql);
 				try {
 					zos.putNextEntry(new ZipEntry(dataRow.getScriptedField().getFullFieldId() + ".csv"));
 					// Due to Jira having out-dated Apache commons IO/lang3
@@ -103,81 +100,88 @@ public class ExportDataJob extends Job {
 					headers.append(NEWLINE);
 					headers.delete(0, 1);	// Remove initial comma
 					zos.write(headers.toString().getBytes());
-					int processedCount = 0;
-					for (Issue issue : searchResult.getResults()) {
-						// Export data to CSV
-						// Importing CSV requires project key, name, type, summary and issue key
-						String projectKey = issue.getProjectObject().getKey();
-						String projectName = issue.getProjectObject().getName();
-						String projectType = issue.getProjectObject().getProjectTypeKey().getKey();
-						String summary = issue.getSummary();
-						String issueKey = issue.getKey();
-						String issueType = issue.getIssueType().getName();
-						Object fieldValue = issue.getCustomFieldValue(scriptedField);
-						// Apply data conversion	
-						Object convertedFieldValue = null;
-						switch (dataRow.getDataConversionType()) {
-						case NONE:
-							convertedFieldValue = fieldValue;
-							break;
-						default: 
-							DataConversion conv = dataRow.getDataConversionType().getImplementation();
-							if (conv != null) {
-								try {
-									convertedFieldValue = conv.convert(issue, fieldValue);
-									Log.debug(LOGGER, 
-											"Issue " + issue.getKey() + 
-											" Value converted by " + dataRow.getDataConversionType() + 
-											" From: " + fieldValue + 
-											" To: " + convertedFieldValue);
-								} catch (Exception ex) {
-									appendMessage(
-											"Issue " + issue.getKey() + 
-											" Unable to convert value using " + dataRow.getDataConversionType() + 
-											": " + ex.getMessage());
+					AtomicInteger processedCount = new AtomicInteger(0);
+					issues.forEach(
+						issue -> {
+							try {
+								// Export data to CSV
+								// Importing CSV requires project key, name, type, summary and issue key
+								String projectKey = issue.getProjectObject().getKey();
+								String projectName = issue.getProjectObject().getName();
+								String projectType = issue.getProjectObject().getProjectTypeKey().getKey();
+								String summary = issue.getSummary();
+								String issueKey = issue.getKey();
+								String issueType = issue.getIssueType().getName();
+								Object fieldValue = issue.getCustomFieldValue(scriptedField);
+								// Apply data conversion	
+								Object convertedFieldValue = null;
+								switch (dataRow.getDataConversionType()) {
+								case NONE:
+									convertedFieldValue = fieldValue;
+									break;
+								default: 
+									DataConversion conv = dataRow.getDataConversionType().getImplementation();
+									if (conv != null) {
+										try {
+											convertedFieldValue = conv.convert(issue, fieldValue);
+											Log.debug(LOGGER, 
+													"Issue " + issue.getKey() + 
+													" Value converted by " + dataRow.getDataConversionType() + 
+													" From: " + fieldValue + 
+													" To: " + convertedFieldValue);
+										} catch (Exception ex) {
+											appendMessage(
+													"Issue " + issue.getKey() + 
+													" Unable to convert value using " + dataRow.getDataConversionType() + 
+													": " + ex.getMessage());
+										}
+									} else {
+										appendMessage(
+												"Issue " + issue.getKey() + 
+												" Unrecognized data conversion: " + dataRow.getDataConversionType());
+									}
+									break;
 								}
-							} else {
-								appendMessage(
-										"Issue " + issue.getKey() + 
-										" Unrecognized data conversion: " + dataRow.getDataConversionType());
+								String fieldValueString = "";
+								if (fieldValue != null) {
+									if (fieldValue instanceof String) {
+										fieldValueString = String.valueOf(fieldValue);
+									} else {
+										fieldValueString = OM.writeValueAsString(JiraObjectWrapper.wrap(fieldValue));
+									}
+								}
+								String convertedFieldValueString = "";
+								if (convertedFieldValue != null) {
+									if (convertedFieldValue instanceof String) {
+										convertedFieldValueString = String.valueOf(convertedFieldValue);
+									} else {
+										convertedFieldValueString = OM.writeValueAsString(convertedFieldValue);
+									}
+								}
+								fieldValueString = fieldValueString
+										.replaceAll(DOUBLE_QUOTE, DOUBLE_QUOTE + DOUBLE_QUOTE);
+								convertedFieldValueString = convertedFieldValueString
+										.replaceAll(DOUBLE_QUOTE, DOUBLE_QUOTE + DOUBLE_QUOTE);
+								zos.write((
+										DOUBLE_QUOTE + projectKey + DOUBLE_QUOTE + "," + 
+										DOUBLE_QUOTE + projectName + DOUBLE_QUOTE + "," + 
+										DOUBLE_QUOTE + projectType + DOUBLE_QUOTE + "," + 
+										DOUBLE_QUOTE + summary + DOUBLE_QUOTE + "," + 
+										DOUBLE_QUOTE + issueKey + DOUBLE_QUOTE + "," + 
+										DOUBLE_QUOTE + issueType + DOUBLE_QUOTE + "," + 
+										DOUBLE_QUOTE + dataRow.getScriptedField().getFullFieldId() + DOUBLE_QUOTE + "," + 
+										DOUBLE_QUOTE + dataRow.getScriptedField().getName() + DOUBLE_QUOTE + "," + 
+										DOUBLE_QUOTE + fieldValueString + DOUBLE_QUOTE + "," + 
+										DOUBLE_QUOTE + dataRow.getDataConversionType().getValue() + DOUBLE_QUOTE + "," + 
+										DOUBLE_QUOTE + convertedFieldValueString + DOUBLE_QUOTE + NEWLINE).getBytes());
+								processedCount.incrementAndGet();
+								setCurrentStatus(processedCount + " issue(s) processed");
+							} catch (Exception ex) {
+								appendMessage("Failed to write ZIP entry: " + ex.getMessage());
+								Log.error(LOGGER, "Failed to write ZIP entry", ex);
 							}
-							break;
 						}
-						String fieldValueString = "";
-						if (fieldValue != null) {
-							if (fieldValue instanceof String) {
-								fieldValueString = String.valueOf(fieldValue);
-							} else {
-								fieldValueString = OM.writeValueAsString(JiraObjectWrapper.wrap(fieldValue));
-							}
-						}
-						String convertedFieldValueString = "";
-						if (convertedFieldValue != null) {
-							if (convertedFieldValue instanceof String) {
-								convertedFieldValueString = String.valueOf(convertedFieldValue);
-							} else {
-								convertedFieldValueString = OM.writeValueAsString(convertedFieldValue);
-							}
-						}
-						fieldValueString = fieldValueString
-								.replaceAll(DOUBLE_QUOTE, DOUBLE_QUOTE + DOUBLE_QUOTE);
-						convertedFieldValueString = convertedFieldValueString
-								.replaceAll(DOUBLE_QUOTE, DOUBLE_QUOTE + DOUBLE_QUOTE);
-						zos.write((
-								DOUBLE_QUOTE + projectKey + DOUBLE_QUOTE + "," + 
-								DOUBLE_QUOTE + projectName + DOUBLE_QUOTE + "," + 
-								DOUBLE_QUOTE + projectType + DOUBLE_QUOTE + "," + 
-								DOUBLE_QUOTE + summary + DOUBLE_QUOTE + "," + 
-								DOUBLE_QUOTE + issueKey + DOUBLE_QUOTE + "," + 
-								DOUBLE_QUOTE + issueType + DOUBLE_QUOTE + "," + 
-								DOUBLE_QUOTE + dataRow.getScriptedField().getFullFieldId() + DOUBLE_QUOTE + "," + 
-								DOUBLE_QUOTE + dataRow.getScriptedField().getName() + DOUBLE_QUOTE + "," + 
-								DOUBLE_QUOTE + fieldValueString + DOUBLE_QUOTE + "," + 
-								DOUBLE_QUOTE + dataRow.getDataConversionType().getValue() + DOUBLE_QUOTE + "," + 
-								DOUBLE_QUOTE + convertedFieldValueString + DOUBLE_QUOTE + NEWLINE).getBytes());
-						processedCount++;
-						setCurrentStatus(processedCount + " issue(s) processed");
-					}	// For each issue found
+					);
 					zos.closeEntry();
 				} catch (Exception ex) {
 					appendMessage("Failed to write ZIP entry: " + ex.getMessage());

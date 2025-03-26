@@ -5,7 +5,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.igsl</groupId>
 	<artifactId>ScriptedFieldConversionCSVMapper</artifactId>
-	<version>0.0.6</version>
+	<version>0.0.7</version>
 
 	<organization>
 		<name>Integrated Global Solutions Limited</name>
@@ -28,7 +28,7 @@
 			<!-- 
 				Eclipse will complain about systemPath not being absoulte path, but Maven will build successfully
 			-->
-			<systemPath>${project.basedir}\..\Plugin\target\ScriptedFieldConversion-0.0.6.jar</systemPath>
+			<systemPath>${project.basedir}\..\Plugin\target\ScriptedFieldConversion-0.0.7.jar</systemPath>
 		</dependency>
 
 		<dependency>
@@ -234,18 +234,35 @@
 			<plugin>
 				<artifactId>maven-assembly-plugin</artifactId>
 				<configuration>
-					<appendAssemblyId>false</appendAssemblyId>
-					<descriptors>
-						<descriptor>src/main/assembly/zip.xml</descriptor>
-					</descriptors>
+					
 				</configuration>
 				<executions>
 					<execution>
-						<id>make-assembly</id> <!-- this is used for inheritance merges -->
+						<id>JAR</id> <!-- this is used for inheritance merges -->
 						<phase>install</phase> <!-- append to the packaging phase. -->
 						<goals>
 							<goal>single</goal> <!-- goals == mojos -->
 						</goals>
+						<configuration>
+							<appendAssemblyId>false</appendAssemblyId>
+							<descriptors>
+								<descriptor>src/main/assembly/zip.xml</descriptor>
+							</descriptors>
+						</configuration>
+					</execution>
+					<execution>
+						<id>Source</id> <!-- this is used for inheritance merges -->
+						<phase>install</phase> <!-- append to the packaging phase. -->
+						<goals>
+							<goal>single</goal> <!-- goals == mojos -->
+						</goals>
+						<configuration>
+							<appendAssemblyId>false</appendAssemblyId>
+							<descriptors>
+								<descriptor>src/main/assembly/source.xml</descriptor>
+							</descriptors>
+							<finalName>${project.artifactId}-${project.version}-source</finalName>
+						</configuration>
 					</execution>
 				</executions>
 			</plugin>
