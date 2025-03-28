@@ -38,6 +38,8 @@ public class SessionData {
 	@JsonIgnore
 	private Map<String, List<CustomField>> customFields = null;
 	@JsonIgnore
+	private Map<String, List<ProjectInfo>> usedInProjects = new HashMap<>();
+	@JsonIgnore
 	private Map<String, List<ScreenInfo>> usedInScreens = new HashMap<>();	
 	@JsonIgnore
 	private String sql = "";
@@ -170,5 +172,11 @@ public class SessionData {
 	}
 	public void setAutoRefresh(boolean autoRefresh) {
 		this.autoRefresh = autoRefresh;
+	}
+	public Map<String, List<ProjectInfo>> getUsedInProjects() {
+		return usedInProjects;
+	}
+	public void setUsedInProjects(Map<String, List<ProjectInfo>> usedInProjects) {
+		this.usedInProjects = usedInProjects;
 	}
 }

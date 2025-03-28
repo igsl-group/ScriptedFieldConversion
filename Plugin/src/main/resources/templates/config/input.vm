@@ -334,6 +334,7 @@ div.Scripted, div.Replacement {
 				<tr>
 					<th>Field Name</th>
 					<th>Field Id<br/>Template/Class</th>
+					<th>Used in Projects</th>
 					<th>
 						Used in Screens<br/>
 						<button type="button" class="Collapsible" onclick="toggleDetails(null, 'Scripted', true)">
@@ -384,6 +385,7 @@ div.Scripted, div.Replacement {
 			<tbody>
 				<!-- For each scripted field -->
 				#foreach ($row in $action.getDataRows())
+					#set ($fieldId = $row.getScriptedField().getCustomFieldId())
 					#set ($scriptedFieldId = $row.getScriptedField().getFullFieldId())
 					<tr>
 						<!-- Hidden field id -->
@@ -394,6 +396,11 @@ div.Scripted, div.Replacement {
 						<td>$!{row.getScriptedField().getName()}</td>
 						<!-- Field ID and type -->
 						<td>$!{scriptedFieldId}<br/>$!{row.getScriptedField().getType()}</td>
+						<!-- Used in projects -->
+						<td>
+							<p>Used in ${action.getUsedInProjectsCount($fieldId)} project(s)</p>
+							<p>$!{action.getUsedInProjectList($fieldId)}</p>
+						</td>					
 						<!-- Used in screens sub-table -->
 						<td>
 							#set ($ScreenCount = 0)

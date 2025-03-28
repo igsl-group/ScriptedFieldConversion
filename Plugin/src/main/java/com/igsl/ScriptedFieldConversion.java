@@ -78,6 +78,7 @@ import com.igsl.job.Job;
 import com.igsl.job.JobEntity;
 import com.igsl.session.ActionLog;
 import com.igsl.session.DataRow;
+import com.igsl.session.ProjectInfo;
 import com.igsl.session.ScreenInfo;
 import com.igsl.session.ScriptedField;
 import com.igsl.session.ScriptedFieldType;
@@ -167,6 +168,9 @@ public class ScriptedFieldConversion extends JiraWebActionSupport {
 	public Map<String, List<ScreenInfo>> getScreenInfoMap() {
 		return sessionData.getUsedInScreens();
 	}
+	public Map<String, List<ProjectInfo>> getProjectInfoMap() {
+		return sessionData.getUsedInProjects();
+	}
 	public String getSqlResult() {
 		return sessionData.getSqlResult();
 	}
@@ -188,9 +192,60 @@ public class ScriptedFieldConversion extends JiraWebActionSupport {
 	public List<JobEntity> getAllJobEntity() {
 		return Job.loadAllJobEntity();
 	}
+	public int getUsedInProjectsCount(String fieldId) {
+		if (sessionData.getUsedInProjects().containsKey(fieldId)) {
+			return sessionData.getUsedInProjects().get(fieldId).size();
+		}
+		return 0;
+	}
+	public String getUsedInProjectList(String fieldId) {
+		if (sessionData.getUsedInProjects().containsKey(fieldId)) {
+			StringBuilder sb = new StringBuilder();
+			for (ProjectInfo info : sessionData.getUsedInProjects().get(fieldId)) {
+				sb.append(",").append(info.getProjectKey());
+			}
+			if (sb.length() != 0) {
+				sb.delete(0, 1);
+			}
+			return sb.toString();
+		}
+		return "";
+	}
 	
 	private void fetchProjects() {
 		sessionData.setProjects(PROJECT_MANAGER.getProjects());
+	}
+	
+	private void fetchUsedInProjects() {
+		Map<String, List<ProjectInfo>> map = DATABASE_ACCESSOR.executeQuery(
+			new ConnectionFunction<Map<String, List<ProjectInfo>>>() {
+				@Override
+				public Map<String, List<ProjectInfo>> run(DatabaseConnection dbConn) {
+					Map<String, List<ProjectInfo>> result = new HashMap<>(); 
+					Connection conn = dbConn.getJdbcConnection();
+					try (PreparedStatement ps = conn.prepareStatement(ProjectInfo.QUERY)) {
+						ResultSet rs = ps.executeQuery();
+						while (rs.next()) {
+							ProjectInfo info = new ProjectInfo(rs);
+							if (!result.containsKey(info.getFieldId())) {
+								result.put(info.getFieldId(), new ArrayList<>());
+							}
+							result.get(info.getFieldId()).add(info);
+						}
+					} catch (SQLException sqlex) {
+						Log.error(LOGGER, "SQLException", sqlex);
+					}
+					return result;
+				}
+			});
+		sessionData.setUsedInProjects(map);
+		// Set default project list if empty
+		for (DataRow row : sessionData.getDataRows().values()) {
+			if (row.getProjects() == null || 
+				row.getProjects().trim().isEmpty()) {
+				row.setProjects(getUsedInProjectList(row.getScriptedField().getCustomFieldId()));
+			}
+		}
 	}
 	
 	private void fetchUsedInScreens() {
@@ -295,6 +350,7 @@ public class ScriptedFieldConversion extends JiraWebActionSupport {
 		fetchCustomFields();
 		fetchScriptedFields();
 		fetchUsedInScreens();
+		fetchUsedInProjects();
 		saveSession();
 	}
 	
@@ -308,6 +364,7 @@ public class ScriptedFieldConversion extends JiraWebActionSupport {
 		fetchCustomFields();
 		fetchScriptedFields();	// This will not purge missing scripted fields
 		fetchUsedInScreens();
+		fetchUsedInProjects();
 		// Update data
 	}
 
