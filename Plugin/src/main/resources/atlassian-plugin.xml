@@ -25,12 +25,11 @@
 	</plugin-info>
 
     <!-- REST APIs -->
-	<rest key="RestApi" path="/ScriptedFieldConversion" version="1.0">
+    <rest key="RestApi" path="/ScriptedFieldConversion" version="1.0">
 		<description>ScriptedFieldConversion REST APIs</description>
-		<!-- Package(s) to scan for REST APIs -->
 		<package>com.igsl.rest</package>
 	</rest>
-
+	
 	<!-- Menu section under System|Manage Apps menu -->
 	<web-section key="ScriptedFieldConversionSection"
 		location="admin_plugins_menu">

@@ -217,6 +217,10 @@ public class ScriptedFieldConversion extends JiraWebActionSupport {
 	}
 	
 	private void fetchUsedInProjects() {
+		List<String> fieldIdList = new ArrayList<>();
+		for (DataRow row : sessionData.getDataRows().values()) {
+			fieldIdList.add(row.getScriptedField().getCustomFieldId());
+		}
 		Map<String, List<ProjectInfo>> map = DATABASE_ACCESSOR.executeQuery(
 			new ConnectionFunction<Map<String, List<ProjectInfo>>>() {
 				@Override

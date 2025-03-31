@@ -28,6 +28,8 @@ public class ProjectInfo {
 			"			ON naScreen.SINK_NODE_ID = itss.ID AND naScreen.SINK_NODE_ENTITY = 'IssueTypeScreenScheme'" + 
 			"		LEFT JOIN project p " + 
 			"			ON p.ID = naScreen.SOURCE_NODE_ID AND naScreen.SINK_NODE_ENTITY = 'IssueTypeScreenScheme'" + 
+			"	WHERE " + 
+			"		cf.CUSTOMFIELDTYPEKEY LIKE 'com.onresolve.jira.groovy.groovyrunner:%' " + 
 			"	UNION ALL" + 
 			"	SELECT" + 
 			"		cf.ID AS cfid" + 
@@ -51,6 +53,8 @@ public class ProjectInfo {
 			"			ON naWorkflow.SINK_NODE_ID = ws.ID AND naWorkflow.SINK_NODE_ENTITY = 'WorkflowScheme'" + 
 			"		JOIN project p " + 
 			"			ON p.ID = naWorkflow.SOURCE_NODE_ID AND naWorkflow.SINK_NODE_ENTITY = 'WorkflowScheme'" + 
+			"	WHERE " + 
+			"		cf.CUSTOMFIELDTYPEKEY LIKE 'com.onresolve.jira.groovy.groovyrunner:%' " +
 			") tmp";
 	
 	private String fieldId;
