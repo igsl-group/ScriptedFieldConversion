@@ -16,9 +16,9 @@
         </RollingFile>
     </Appenders>
     <Loggers>
-        <Root level="warn">
-            <AppenderRef ref="RollingFile" level="warn" />
-            <AppenderRef ref="Console" level="warn"/>
+        <Root level="debug">
+            <AppenderRef ref="RollingFile" level="debug" />
+            <AppenderRef ref="Console" level="info"/>
         </Root>
         <Logger name="org.htmlunit" level="off" additivity="false">
             <AppenderRef ref="RollingFile" level="off" />

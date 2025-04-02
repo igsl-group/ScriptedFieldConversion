@@ -643,6 +643,7 @@ public class ScriptedFieldConversion extends JiraWebActionSupport {
 	}
 	
 	public String doConvert() throws Exception {
+		Log.info(LOGGER, "doConvert()");
 		loadSession();
 		// Get parameters
 		HttpServletRequest req = getHttpRequest();

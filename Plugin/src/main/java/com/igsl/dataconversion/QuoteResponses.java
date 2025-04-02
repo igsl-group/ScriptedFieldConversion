@@ -51,6 +51,12 @@ public class QuoteResponses extends DataConversion {
 				newUrl = "/browse/" + matcher.group(1);
 			}
 			String linkText = element.text();
+			
+			// Escape markdown control characters
+			// https://jira.atlassian.com/browse/theres-no-way-to-escape-the-pipe-character
+			// No pipes allowed as there is no escape mechanism
+			linkText = linkText.replaceAll("\\|", "::");
+			
 			Elements spanList = element.parent().parent().getElementsByTag("span");
 			String status = spanList.get(0).text();
 			row	.append(NEWLINE)
