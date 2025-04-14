@@ -75,14 +75,15 @@ public class CSVMapping {
 						.host(host)
 						.authenticate(email, token)
 						.path("/rest/api/3/search/jql")
-						.pagination(new Tokenized<Issue>(Issue.class))
+						.pagination(new Tokenized<Issue>(Issue.class).valuesProperty("issues"))
 						.method(HttpMethod.GET)
 						.query(constraints);
 				List<Issue> issues = restUtil.requestAllPages();
 				for (Issue is : issues) {
 					map.put(is.getKey(), is.getId());
 				}
-				output.put(ObjectType.ISSUE_TYPE, map);
+				Log.info(LOGGER, "Issue count: " + map.size());
+				output.put(ObjectType.ISSUE, map);
 			} catch (Exception ex) {
 				Log.error(LOGGER, "Failed to retrieve issue mappings", ex);
 				return false;
@@ -103,6 +104,7 @@ public class CSVMapping {
 					map.put(it.getName(), it.getId());
 				}
 				output.put(ObjectType.ISSUE_TYPE, map);
+				Log.info(LOGGER, "Issue type count: " + map.size());
 			} catch (Exception ex) {
 				Log.error(LOGGER, "Failed to retrieve issue type mappings", ex);
 				return false;
@@ -128,6 +130,7 @@ public class CSVMapping {
 					}
 				}
 				output.put(ObjectType.CUSTOM_FIELD, map);
+				Log.info(LOGGER, "Custom field count: " + map.size());
 			} catch (Exception ex) {
 				Log.error(LOGGER, "Failed to retrieve custom field mappings", ex);
 				return false;
@@ -148,6 +151,7 @@ public class CSVMapping {
 					map.put(p.getKey(), p.getId());
 				}
 				output.put(ObjectType.PROJECT, map);
+				Log.info(LOGGER, "Project count: " + map.size());
 			} catch (Exception ex) {
 				Log.error(LOGGER, "Failed to retrieve project mappings", ex);
 				return false;

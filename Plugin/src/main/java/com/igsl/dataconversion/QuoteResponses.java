@@ -183,7 +183,8 @@ public class QuoteResponses extends DataConversion {
 	public Map<ObjectType, Map<String, Object>> getMappingConstraints() {
 		Map<ObjectType, Map<String, Object>> result = new HashMap<>();
 		Map<String, Object> map = new HashMap<>();
-		map.put("jql", "project IN (VMNQ, VMNQCL)");
+		map.put("jql", "project IN (VMNQ, VMNQCL, CCRQ)");
+		map.put("properties", "key");
 		result.put(ObjectType.ISSUE, map);
 		return result;
 	}

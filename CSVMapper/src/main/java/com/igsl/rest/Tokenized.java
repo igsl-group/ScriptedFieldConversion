@@ -115,9 +115,9 @@ public class Tokenized<T> extends Pagination<T> {
 		// nextPageToken
 		nextPageToken = null;
 		if (this.nextPageTokenParameterName != null && !this.nextPageTokenParameterName.isEmpty()) {
-			JsonNode totalNode = root.get(nextPageTokenParameterName);
-			if (totalNode != null && totalNode.isInt()) {
-				nextPageToken = totalNode.asText();
+			JsonNode tokenNode = root.get(nextPageTokenParameterName);
+			if (tokenNode != null) {
+				nextPageToken = tokenNode.asText();
 			}
 		}
 		// Values

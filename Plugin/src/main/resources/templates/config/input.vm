@@ -1,10 +1,9 @@
 <html>
 <head>
 <title>Scripted Field Conversion</title>
-<meta name="decorator" content="admin" />
-<!-- 
-<meta name="admin.active.section" content="plugin-admin-config-link" />
--->
+<meta name="decorator" content="atl.admin">
+<meta name="admin.active.section" content="admin_plugins_menu/upm_section"/>
+<meta name="admin.active.tab" content="upm-admin-link"/>
 <style type="text/css">
 
 /* For a nice-looking slider toggle */
@@ -326,6 +325,11 @@ div.Scripted, div.Replacement {
 	</table>
 	<h3>Convert Scripted Fields: </h3>
 	<form 	class="ScriptedFieldConversion" 
+			id="projectListForm" 
+			method="POST" 
+			action="ScriptedFieldConversion!projectList.jspa">
+	</form>
+	<form 	class="ScriptedFieldConversion" 
 			id="convertForm" 
 			method="POST" 
 			action="ScriptedFieldConversion!convert.jspa">
@@ -334,7 +338,9 @@ div.Scripted, div.Replacement {
 				<tr>
 					<th>Field Name</th>
 					<th>Field Id<br/>Template/Class</th>
-					<th>Used in Projects</th>
+					<th>Used in Projects<br/>
+						<input type="button" value="Fetch" onclick="document.forms['projectListForm'].submit();"/>
+					</th>
 					<th>
 						Used in Screens<br/>
 						<button type="button" class="Collapsible" onclick="toggleDetails(null, 'Scripted', true)">
@@ -399,7 +405,6 @@ div.Scripted, div.Replacement {
 						<!-- Used in projects -->
 						<td>
 							<p>Used in ${action.getUsedInProjectsCount($fieldId)} project(s)</p>
-							<p>$!{action.getUsedInProjectList($fieldId)}</p>
 						</td>					
 						<!-- Used in screens sub-table -->
 						<td>

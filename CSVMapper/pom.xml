@@ -5,7 +5,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.igsl</groupId>
 	<artifactId>ScriptedFieldConversionCSVMapper</artifactId>
-	<version>0.0.10</version>
+	<version>0.0.12</version>
 
 	<organization>
 		<name>Integrated Global Solutions Limited</name>
@@ -28,7 +28,7 @@
 			<!-- 
 				Eclipse will complain about systemPath not being absoulte path, but Maven will build successfully
 			-->
-			<systemPath>${project.basedir}\..\Plugin\target\ScriptedFieldConversion-0.0.10.jar</systemPath>
+			<systemPath>${project.basedir}\..\Plugin\target\ScriptedFieldConversion-0.0.12.jar</systemPath>
 		</dependency>
 
 		<dependency>

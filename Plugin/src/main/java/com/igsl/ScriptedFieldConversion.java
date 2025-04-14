@@ -354,7 +354,6 @@ public class ScriptedFieldConversion extends JiraWebActionSupport {
 		fetchCustomFields();
 		fetchScriptedFields();
 		fetchUsedInScreens();
-		fetchUsedInProjects();
 		saveSession();
 	}
 	
@@ -368,7 +367,6 @@ public class ScriptedFieldConversion extends JiraWebActionSupport {
 		fetchCustomFields();
 		fetchScriptedFields();	// This will not purge missing scripted fields
 		fetchUsedInScreens();
-		fetchUsedInProjects();
 		// Update data
 	}
 
@@ -649,11 +647,14 @@ public class ScriptedFieldConversion extends JiraWebActionSupport {
 		HttpServletRequest req = getHttpRequest();
 		sessionData.parseActions(req);
 		// Perform actions for each field
+		Log.info(LOGGER, "Row count: " + sessionData.getDataRows().size());
 		for (DataRow row : sessionData.getDataRows().values()) {
+			Log.info(LOGGER, "Processing field: " + row.getScriptedField().getCustomFieldId());
 			row.setActionLog(new ActionLog());
 			CustomField originalField = CUSTOM_FIELD_MANAGER
 					.getCustomFieldObject(row.getScriptedField().getFullFieldId());
 			if (originalField == null) {
+				Log.info(LOGGER, "Scripted field not found: " + row.getScriptedField().getFullFieldId());
 				String s = "Error: Scripted field not found";
 				row.getActionLog().setFieldName(s);
 				continue;
@@ -661,6 +662,7 @@ public class ScriptedFieldConversion extends JiraWebActionSupport {
 			row.getActionLog().setFieldId(row.getScriptedField().getFullFieldId());
 			row.getActionLog().setFieldName(row.getScriptedField().getName());
 			// Create field
+			Log.info(LOGGER, "Field action: " + row.getFieldAction());
 			switch (row.getFieldAction()) {
 			case DELETE:
 				deleteReplacementField(row);
@@ -677,6 +679,7 @@ public class ScriptedFieldConversion extends JiraWebActionSupport {
 				break;
 			}
 			// Data
+			Log.info(LOGGER, "Data action: " + row.getDataAction());
 			switch (row.getDataAction()) {
 			case COPY:
 				copyData(req, row);
@@ -693,6 +696,7 @@ public class ScriptedFieldConversion extends JiraWebActionSupport {
 				break;
 			}
 			// Screen
+			Log.info(LOGGER, "Screen action: " + row.getScreenAction());
 			switch (row.getScreenAction()) {
 			case NONE:
 				row.getActionLog().getScreenAction().add("N/A");
@@ -724,6 +728,7 @@ public class ScriptedFieldConversion extends JiraWebActionSupport {
 		// Turn on auto refresh
 		sessionData.setAutoRefresh(true);
 		saveSession();
+		Log.info(LOGGER, "Session saved");
 		return JiraWebActionSupport.INPUT;
 	}
 	
@@ -781,6 +786,13 @@ public class ScriptedFieldConversion extends JiraWebActionSupport {
 				return JiraWebActionSupport.INPUT;
 			}
 		}
+		return JiraWebActionSupport.INPUT;
+	}
+	
+	public String doProjectList() throws Exception {
+		loadSession();
+		fetchUsedInProjects();
+		saveSession();
 		return JiraWebActionSupport.INPUT;
 	}
 	

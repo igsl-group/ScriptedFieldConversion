@@ -4,8 +4,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.log4j.Logger;
-
 import com.atlassian.jira.issue.Issue;
 import com.igsl.Log;
 
@@ -16,8 +14,6 @@ import com.igsl.Log;
  */
 public class IssuePicker extends DataConversion {
 
-	private static final Logger LOGGER = Logger.getLogger(IssuePicker.class);
-	
 	public static final String NAME = "Issue Picker";
 	public static final String DESC = "Issue Object => Comma-delimited issue keys";
 	
@@ -44,15 +40,11 @@ public class IssuePicker extends DataConversion {
 	public Object convert(
 			Issue issue, 
 			Object sourceValue) throws Exception {
-		Log.debug(LOGGER, "IssuePicker value class: " + sourceValue.getClass());
 		if (sourceValue instanceof Issue) {
-			Log.debug(LOGGER, "Single Issue");
 			return _convert((Issue) sourceValue);
 		} else if (sourceValue instanceof List) {
-			Log.debug(LOGGER, "List of Issue?");
 			return _convert((List<Issue>) sourceValue);
 		}
-		Log.debug(LOGGER, "Unrecognized sourceValue class");
 		return "";
 	}
 

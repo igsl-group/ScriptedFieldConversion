@@ -50,6 +50,15 @@ public class ExportDataJob extends Job {
 	private static final CustomFieldManager CUSTOM_FIELD_MANAGER = ComponentAccessor.getCustomFieldManager();
 	private static final JiraHome JIRA_HOME = ComponentAccessor.getComponent(JiraHome.class);
 	
+	private String csvEscape(String s) {
+		if (s != null) {
+			// Double-up double quotes
+			s = s.replaceAll(DOUBLE_QUOTE, DOUBLE_QUOTE + DOUBLE_QUOTE);
+			return s;
+		}
+		return null;
+	}
+	
 	@Override
 	public JobRunnerResponse runJob(JobRunnerRequest request) {
 		start();
@@ -158,22 +167,18 @@ public class ExportDataJob extends Job {
 										convertedFieldValueString = OM.writeValueAsString(convertedFieldValue);
 									}
 								}
-								fieldValueString = fieldValueString
-										.replaceAll(DOUBLE_QUOTE, DOUBLE_QUOTE + DOUBLE_QUOTE);
-								convertedFieldValueString = convertedFieldValueString
-										.replaceAll(DOUBLE_QUOTE, DOUBLE_QUOTE + DOUBLE_QUOTE);
 								zos.write((
-										DOUBLE_QUOTE + projectKey + DOUBLE_QUOTE + "," + 
-										DOUBLE_QUOTE + projectName + DOUBLE_QUOTE + "," + 
-										DOUBLE_QUOTE + projectType + DOUBLE_QUOTE + "," + 
-										DOUBLE_QUOTE + summary + DOUBLE_QUOTE + "," + 
-										DOUBLE_QUOTE + issueKey + DOUBLE_QUOTE + "," + 
-										DOUBLE_QUOTE + issueType + DOUBLE_QUOTE + "," + 
-										DOUBLE_QUOTE + dataRow.getScriptedField().getFullFieldId() + DOUBLE_QUOTE + "," + 
-										DOUBLE_QUOTE + dataRow.getScriptedField().getName() + DOUBLE_QUOTE + "," + 
-										DOUBLE_QUOTE + fieldValueString + DOUBLE_QUOTE + "," + 
-										DOUBLE_QUOTE + dataRow.getDataConversionType().getValue() + DOUBLE_QUOTE + "," + 
-										DOUBLE_QUOTE + convertedFieldValueString + DOUBLE_QUOTE + NEWLINE).getBytes());
+										DOUBLE_QUOTE + csvEscape(projectKey) + DOUBLE_QUOTE + "," + 
+										DOUBLE_QUOTE + csvEscape(projectName) + DOUBLE_QUOTE + "," + 
+										DOUBLE_QUOTE + csvEscape(projectType) + DOUBLE_QUOTE + "," + 
+										DOUBLE_QUOTE + csvEscape(summary) + DOUBLE_QUOTE + "," + 
+										DOUBLE_QUOTE + csvEscape(issueKey) + DOUBLE_QUOTE + "," + 
+										DOUBLE_QUOTE + csvEscape(issueType) + DOUBLE_QUOTE + "," + 
+										DOUBLE_QUOTE + csvEscape(dataRow.getScriptedField().getFullFieldId()) + DOUBLE_QUOTE + "," + 
+										DOUBLE_QUOTE + csvEscape(dataRow.getScriptedField().getName()) + DOUBLE_QUOTE + "," + 
+										DOUBLE_QUOTE + csvEscape(fieldValueString) + DOUBLE_QUOTE + "," + 
+										DOUBLE_QUOTE + csvEscape(dataRow.getDataConversionType().getValue()) + DOUBLE_QUOTE + "," + 
+										DOUBLE_QUOTE + csvEscape(convertedFieldValueString) + DOUBLE_QUOTE + NEWLINE).getBytes());
 								processedCount.incrementAndGet();
 								setCurrentStatus(processedCount + " issue(s) processed");
 							} catch (Exception ex) {
