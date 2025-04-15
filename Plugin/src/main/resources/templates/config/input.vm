@@ -519,7 +519,7 @@ div.Scripted, div.Replacement {
 							<select name="replacementField">
 								<option value=" ">N/A</option>
 								#foreach ($item in $action.getMatchingFields($row.getScriptedField()))
-									#set ($title = $item.getCustomFieldType().getName())
+									#set ($title = $item.getName() + ": " + $item.getCustomFieldType().getName())
 									#if ($id == $item.getId())
 										<option selected="selected" 
 												title="$!{title}"

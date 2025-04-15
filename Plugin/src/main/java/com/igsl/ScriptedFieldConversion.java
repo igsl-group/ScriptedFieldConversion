@@ -22,6 +22,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import javax.inject.Inject;
 import javax.inject.Named;
@@ -106,7 +108,7 @@ com.valiantys.jira.plugins.SQLFeed:nfeed-standard-customfield-type -> HTML
 @Named
 public class ScriptedFieldConversion extends JiraWebActionSupport {
 
-	private static final SimpleDateFormat SDF = new SimpleDateFormat("yyyyMMddHHmmss");
+	private static final SimpleDateFormat SDF = new SimpleDateFormat("yyyyMMdd");
 	
 	private static final SchedulerService SCHEDULER_SERVICE = 
 			ComponentAccessor.getComponent(SchedulerService.class);
@@ -445,19 +447,24 @@ public class ScriptedFieldConversion extends JiraWebActionSupport {
 		}
 	}
 	
-	private String createReplacementFieldName(String originalName) {
+	public String createReplacementFieldName(String originalName) {
 		return "Z_" + SDF.format(new Date()) + "_" + originalName;
 	}
 	
 	public List<CustomField> getMatchingFields(ScriptedField sf) {
+		LOGGER.info("getMatchingFields: " + sf.getName());
 		List<CustomField> result = new ArrayList<>();
-		String name1 = sf.getName();
-		String name2 = createReplacementFieldName(sf.getName());
+		Pattern pattern = Pattern.compile("(Z_[0-9]+_)?" + Pattern.quote(sf.getName()));
+		LOGGER.info("getMatchingFields pattern: " + pattern);
 		for (List<CustomField> fields : sessionData.getCustomFields().values()) {
 			for (CustomField field : fields) {
-				if (!field.getId().equals(sf.getFullFieldId()) && 
-					(field.getName().equals(name1) || field.getName().equals(name2))) {
-					result.add(field);
+				if (!sf.getFullFieldId().equals(field.getId())) { 
+					LOGGER.info("getMatchingFields field: " + field.getName());
+					Matcher matcher = pattern.matcher(field.getName());
+					if (matcher.matches()) {
+						LOGGER.info("getMatchingFields matched: " + field.getId());
+						result.add(field);
+					}
 				}
 			}
 		}
