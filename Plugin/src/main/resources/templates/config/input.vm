@@ -78,6 +78,26 @@ div.Scripted, div.Replacement {
 }
 </style>
 <script type="text/javascript">
+	window.onbeforeunload = null;
+
+	function filterField() {
+		var term = $('input#filter').val();
+		if (term) {
+			$('tbody.fieldTable').children('tr').each(function() {
+				var td = $(this).children('td.fieldName');
+				if ($(td).text().includes(term)) {
+					$(this).show();
+				} else {
+					$(this).hide();
+				}
+			});
+		} else {
+			$('tbody.fieldTable').children('tr').each(function() {
+				$(this).show();
+			});
+		}
+	}
+
 	function selectAllFields(ctrl, name) {
 		var state = $(ctrl).prop("checked");
 		$('input[type="checkbox"][id^="' + name + '"]').prop('checked', state);
@@ -333,6 +353,14 @@ div.Scripted, div.Replacement {
 			id="convertForm" 
 			method="POST" 
 			action="ScriptedFieldConversion!convert.jspa">
+		<table>
+			<tr>
+				<td>Field Filter: </td>
+				<td>
+					<input id="filter" name="filter" type="text" value="$!{action.getFilter()}" onkeyup="filterField(this.value)"/>
+				</td>
+			</tr>
+		</table>
 		<table class="DataTable">
 			<thead>
 				<tr>
@@ -388,7 +416,7 @@ div.Scripted, div.Replacement {
 					<th>Data Conversion (applies to both copy and export)</th>
 				</tr>
 			</thead>
-			<tbody>
+			<tbody class="fieldTable">
 				<!-- For each scripted field -->
 				#foreach ($row in $action.getDataRows())
 					#set ($fieldId = $row.getScriptedField().getCustomFieldId())
@@ -399,7 +427,7 @@ div.Scripted, div.Replacement {
 								name="select" 
 								value="${scriptedFieldId}"/>
 						<!-- Field name -->
-						<td>$!{row.getScriptedField().getName()}</td>
+						<td class="fieldName">$!{row.getScriptedField().getName()}</td>
 						<!-- Field ID and type -->
 						<td>$!{scriptedFieldId}<br/>$!{row.getScriptedField().getType()}</td>
 						<!-- Used in projects -->
@@ -490,17 +518,15 @@ div.Scripted, div.Replacement {
 							#end
 							<select name="replacementField">
 								<option value=" ">N/A</option>
-								#foreach ($item in $action.getCustomFields().get($row.getScriptedField().getName())) 
+								#foreach ($item in $action.getMatchingFields($row.getScriptedField()))
 									#set ($title = $item.getCustomFieldType().getName())
-									#if ($item.getId() != $scriptedFieldId)
-										#if ($id == $item.getId())
-											<option selected="selected" 
-													title="$!{title}"
-													value="${item.getId()}">$!{item.getId()}</option>
-										#else
-											<option title="$!{title}" 
-													value="${item.getId()}">$!{item.getId()}</option>
-										#end
+									#if ($id == $item.getId())
+										<option selected="selected" 
+												title="$!{title}"
+												value="${item.getId()}">$!{item.getId()}</option>
+									#else
+										<option title="$!{title}" 
+												value="${item.getId()}">$!{item.getId()}</option>
 									#end
 								#end
 							</select>
@@ -788,6 +814,8 @@ div.Scripted, div.Replacement {
 		#if ($action.isAutoRefresh())
 			autoRefresh();
 		#end
+		
+		filterField();
 	</script>
 </body>
 </html>

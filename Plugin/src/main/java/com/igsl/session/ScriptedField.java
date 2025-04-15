@@ -8,7 +8,10 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  * Not all properties are mapped
  */
 public class ScriptedField {
-	public static final String QUERY = 
+
+	public static final String ELEMENTS_CONNECT_TYPE = "com.valiantys.jira.plugins.SQLFeed:nfeed";
+	
+	public static final String SCRIPTED_FIELD_QUERY = 
 			"SELECT " + 
 			"	t.propertyvalue As Text " + 
 			"FROM " + 

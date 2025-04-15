@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 
 public enum FieldAction implements Action<FieldAction> {
 	NONE("none", "N/A"),
+	CREATE_WITH_PREFIX("createPrefix", "Create with Prefix"),
 	CREATE("create", "Create"),
 	DELETE("delete", "Delete");
 	

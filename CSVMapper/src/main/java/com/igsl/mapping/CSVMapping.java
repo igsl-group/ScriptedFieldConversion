@@ -80,6 +80,7 @@ public class CSVMapping {
 						.query(constraints);
 				List<Issue> issues = restUtil.requestAllPages();
 				for (Issue is : issues) {
+					Log.info(LOGGER, is.getKey() + " = " + is.getId());
 					map.put(is.getKey(), is.getId());
 				}
 				Log.info(LOGGER, "Issue count: " + map.size());

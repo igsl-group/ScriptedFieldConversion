@@ -12,6 +12,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -87,9 +88,26 @@ import com.igsl.session.SessionData;
 import webwork.action.ServletActionContext;
 import webwork.multipart.MultiPartRequestWrapper;
 
+// TODO Support Elements Connect fields too
+/*
+A-End: Address (QQ)
+com.valiantys.jira.plugins.SQLFeed:nfeed-unplugged-customfield-type -> Text
+
+Bronze % (QQ)
+com.valiantys.jira.plugins.SQLFeed:nfeed-unplugged-customfield-type -> Text
+
+Sales Close (Date) (INsight)
+com.valiantys.jira.plugins.SQLFeed:nfeed-date-customfield-type -> Date
+
+TIP Attachment (INsight)
+com.valiantys.jira.plugins.SQLFeed:nfeed-standard-customfield-type -> HTML
+ */
+
 @Named
 public class ScriptedFieldConversion extends JiraWebActionSupport {
 
+	private static final SimpleDateFormat SDF = new SimpleDateFormat("yyyyMMddHHmmss");
+	
 	private static final SchedulerService SCHEDULER_SERVICE = 
 			ComponentAccessor.getComponent(SchedulerService.class);
 	private static final DatabaseAccessor DATABASE_ACCESSOR = 
@@ -147,6 +165,9 @@ public class ScriptedFieldConversion extends JiraWebActionSupport {
 	/**
 	 * Exposes data for velocity template
 	 */
+	public String getFilter() {
+		return sessionData.getFilter();
+	}
 	public String getContextPath() {
 		return getHttpRequest().getContextPath();
 	}
@@ -302,7 +323,7 @@ public class ScriptedFieldConversion extends JiraWebActionSupport {
 					public List<ScriptedField> run(DatabaseConnection dbConn) {
 						List<ScriptedField> result = new ArrayList<>();
 						Connection conn = dbConn.getJdbcConnection();
-						try (	PreparedStatement ps = conn.prepareStatement(ScriptedField.QUERY);
+						try (	PreparedStatement ps = conn.prepareStatement(ScriptedField.SCRIPTED_FIELD_QUERY);
 								ResultSet rs = ps.executeQuery()) {
 							while (rs.next()) {
 								try {
@@ -324,6 +345,22 @@ public class ScriptedFieldConversion extends JiraWebActionSupport {
 						return result;
 					}
 				});
+		// Shoehorn Elements Connect fields as ScriptedFields
+		for (CustomField cf : CUSTOM_FIELD_MANAGER.getCustomFieldObjects()) {
+			if (cf.getCustomFieldType().getKey().startsWith(ScriptedField.ELEMENTS_CONNECT_TYPE)) {
+				ScriptedField sf = new ScriptedField();
+				sf.setCls(cf.getCustomFieldType().getKey());
+				String id = cf.getId();
+				if (id.startsWith("customfield_")) {
+					id = id.substring("customfield_".length());
+				}
+				sf.setCustomFieldId(id);
+				sf.setDesc(cf.getDescription());
+				sf.setModelTemplate("elementsConnect");	// All EC fields replaced as text field
+				sf.setName(cf.getName());
+				fieldList.add(sf);
+			}
+		}
 		for (ScriptedField field : fieldList) {
 			if (sessionData.getDataRows().containsKey(field.getFullFieldId())) {
 				// Update existing data row
@@ -408,7 +445,26 @@ public class ScriptedFieldConversion extends JiraWebActionSupport {
 		}
 	}
 	
-	private void createReplacementField(DataRow row, CustomField originalField) {
+	private String createReplacementFieldName(String originalName) {
+		return "Z_" + SDF.format(new Date()) + "_" + originalName;
+	}
+	
+	public List<CustomField> getMatchingFields(ScriptedField sf) {
+		List<CustomField> result = new ArrayList<>();
+		String name1 = sf.getName();
+		String name2 = createReplacementFieldName(sf.getName());
+		for (List<CustomField> fields : sessionData.getCustomFields().values()) {
+			for (CustomField field : fields) {
+				if (!field.getId().equals(sf.getFullFieldId()) && 
+					(field.getName().equals(name1) || field.getName().equals(name2))) {
+					result.add(field);
+				}
+			}
+		}
+		return result;
+	}
+	
+	private void createReplacementField(DataRow row, CustomField originalField, boolean withPrefix) {
 		// Create replacement field based on template/class
 		ScriptedField scriptedField = row.getScriptedField();
 		ScriptedFieldType scriptedFieldType = ScriptedFieldType.parse(scriptedField.getType());
@@ -426,7 +482,9 @@ public class ScriptedFieldConversion extends JiraWebActionSupport {
 			List<IssueType> issueTypes = Arrays.asList((IssueType) null);
 			try {
 				CustomField replacementField = CUSTOM_FIELD_MANAGER.createCustomField(
-						scriptedField.getName(), 
+						((withPrefix)? 
+								createReplacementFieldName(originalField.getName()) : 
+								originalField.getName()),
 						scriptedField.getDesc(), 
 						cfType, 
 						cfSearcher, 
@@ -667,8 +725,11 @@ public class ScriptedFieldConversion extends JiraWebActionSupport {
 			case DELETE:
 				deleteReplacementField(row);
 				break;
+			case CREATE_WITH_PREFIX:
+				createReplacementField(row, originalField, true);
+				break;
 			case CREATE:
-				createReplacementField(row, originalField);
+				createReplacementField(row, originalField, false);
 				break;
 			case NONE:
 				if (row.getReplacementFieldId() != null && !row.getReplacementFieldId().isEmpty()) {

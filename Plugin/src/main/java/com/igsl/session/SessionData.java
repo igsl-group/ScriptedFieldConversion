@@ -33,7 +33,9 @@ public class SessionData {
 	private static final Logger LOGGER = Logger.getLogger(SessionData.class);
 	
 	private static final String SESSION_DATA_NAME = "ScriptedFieldConversionData";
+	private static final String PARAM_FILTER = "filter";
 	private Map<String, DataRow> dataRows = new TreeMap<>();
+	private String filter;
 	// Full list of custom fields, key is display name
 	@JsonIgnore
 	private Map<String, List<CustomField>> customFields = null;
@@ -91,6 +93,7 @@ public class SessionData {
 	
 	public void parseActions(HttpServletRequest req) {
 		Map<String, String[]> parameters = req.getParameterMap();
+		filter = req.getParameter(PARAM_FILTER);
 		try {
 			Log.debug(LOGGER, "Parameter Map: " + OM.writeValueAsString(parameters));
 		} catch (Exception ex) {
@@ -178,5 +181,11 @@ public class SessionData {
 	}
 	public void setUsedInProjects(Map<String, List<ProjectInfo>> usedInProjects) {
 		this.usedInProjects = usedInProjects;
+	}
+	public String getFilter() {
+		return filter;
+	}
+	public void setFilter(String filter) {
+		this.filter = filter;
 	}
 }
