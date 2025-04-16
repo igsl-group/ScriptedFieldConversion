@@ -3,6 +3,7 @@ package com.igsl.session;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -36,6 +37,9 @@ public class SessionData {
 	private static final String PARAM_FILTER = "filter";
 	private Map<String, DataRow> dataRows = new TreeMap<>();
 	private String filter;
+	private boolean showAction = false;
+	private List<FieldType> fieldTypes = Arrays.asList(FieldType.SCRIPTED_FIELD);
+	
 	// Full list of custom fields, key is display name
 	@JsonIgnore
 	private Map<String, List<CustomField>> customFields = null;
@@ -187,5 +191,17 @@ public class SessionData {
 	}
 	public void setFilter(String filter) {
 		this.filter = filter;
+	}
+	public List<FieldType> getFieldTypes() {
+		return fieldTypes;
+	}
+	public void setFieldTypes(List<FieldType> fieldTypes) {
+		this.fieldTypes = fieldTypes;
+	}
+	public boolean isShowAction() {
+		return showAction;
+	}
+	public void setShowAction(boolean showAction) {
+		this.showAction = showAction;
 	}
 }

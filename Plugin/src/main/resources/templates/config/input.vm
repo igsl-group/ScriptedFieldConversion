@@ -81,21 +81,46 @@ div.Scripted, div.Replacement {
 	window.onbeforeunload = null;
 
 	function filterField() {
-		var term = $('input#filter').val();
-		if (term) {
-			$('tbody.fieldTable').children('tr').each(function() {
-				var td = $(this).children('td.fieldName');
-				if ($(td).text().includes(term)) {
-					$(this).show();
+		var showAction = $('input#showAction').is(":checked");
+		var term = $('input#filter').val().toLowerCase();
+		$('tbody.fieldTable').children('tr').each(function() {
+			console.log('Processing', $(this));
+			var showRow = true;
+			if (showAction) {
+				var fieldAction = $(this).find('select.fieldAction').val();	
+				var screenAction = $(this).find('select.screenAction').val();	
+				var dataAction = $(this).find('select.dataAction').val();
+				console.log('fieldAction', fieldAction);
+				console.log('screenAction', screenAction);
+				console.log('dataAction', dataAction);
+				if (fieldAction == "none" && 
+					screenAction == "none" && 
+					dataAction == "none") {
+					console.log('showAction: false');
+					showRow &= false;
 				} else {
-					$(this).hide();
+					console.log('showAction: true');
+					showRow &= true;
 				}
-			});
-		} else {
-			$('tbody.fieldTable').children('tr').each(function() {
+			} 
+			if (term) {
+				var td = $(this).find('td.fieldName');
+				if ($(td).text().toLowerCase().includes(term)) {
+					console.log('term: true');
+					showRow &= true;
+				} else {
+					console.log('term: false');
+					showRow &= false;
+				}
+			}
+			if (showRow) {
+				console.log('Show', $(this));
 				$(this).show();
-			});
-		}
+			} else {
+				console.log('Hide', $(this));
+				$(this).hide();
+			}
+		});
 	}
 
 	function selectAllFields(ctrl, name) {
@@ -105,6 +130,7 @@ div.Scripted, div.Replacement {
 	
 	function updateAllSelects(ctrl, name) {
 		var value = $(ctrl).attr("value");
+		// TODO Only update if visible
 		$('select[name="' + name + '"]').attr("value", value);
 	}
 
@@ -198,7 +224,6 @@ div.Scripted, div.Replacement {
 	function updateJobStatus() {
 		var tbody = document.getElementById("JobTable");
 		const restCall = async () => {
-			console.log("Calling REST");
 			var response = await fetch('${action.getContextPath()}/rest/ScriptedFieldConversion/latest/getAllJobEntity', {
 		    	method: 'GET',
 			    headers: {
@@ -206,8 +231,6 @@ div.Scripted, div.Replacement {
 			    }
 			});
 			const list = await response.json();
-			console.log("JSON: ");
-			console.log(list);
 			var stillRunning = false;
 			if (list.length == 0) {
 				var clone = document.getElementById("EmptyJobRow").content.cloneNode(true);
@@ -222,14 +245,20 @@ div.Scripted, div.Replacement {
 					setJobText(clone, "td#action", list[idx].action);
 					setJobText(clone, "td#status", (list[idx].running? "Running" : "Stopped"));
 					stillRunning = stillRunning || (list[idx].running || list[idx].endDate == null);
-					setJobText(clone, "td#startDate", list[idx].startDate);
-					setJobText(clone, "td#endDate", list[idx].endDate);
+					setJobText(clone, "td#duration", list[idx].duration);
 					setJobText(clone, "td#currentStatus", list[idx].currentStatus);
 					setJobHtml(clone, "textarea#message", list[idx].message);
-					if (list[idx].running || list[idx].endDate == null) {
-						disableButton(clone, "button", true);
+					var notComplete = (list[idx].running || list[idx].endDate == null);
+					if (notComplete) {
+						disableButton(clone, "button.download", true);
+						disableButton(clone, "button.delete", true);
 					} else {
-						disableButton(clone, "button", false);
+						if (list[idx].download) {
+							disableButton(clone, "button.download", false);
+						} else {
+							disableButton(clone, "button.download", true);
+						}
+						disableButton(clone, "button.delete", false);
 					}
 					setJobValue(clone, "input#jobId", list[idx].ID);
 					// Add to tbody
@@ -280,8 +309,7 @@ div.Scripted, div.Replacement {
 			<td id="jobId"></td>
 			<td id="action"></td>
 			<td id="status"></td>
-			<td id="startDate"></td>
-			<td id="endDate"></td>
+			<td id="duration"></td>
 			<td id="currentStatus"></td>
 			<td><textarea id="message" style='width:95%' rows='5'></textarea></td>
 			<td>
@@ -289,13 +317,13 @@ div.Scripted, div.Replacement {
 						method='POST' 
 						action='ScriptedFieldConversion!download.jspa'>
 					<input id="jobId" type='hidden' name='id' value=''/>
-					<button type='submit'>Download</button>
+					<button class='download' type='submit'>Download</button>
 				</form>
 				<form 	class='ScriptedFieldConversion' 
 						method='POST'
 						action='ScriptedFieldConversion!delete.jspa'>
 					<input id="jobId" type='hidden' name='id' value=''/>
-					<button type='submit'>Delete</button>
+					<button class='delete' type='submit'>Delete</button>
 				</form>
 			</td>
 		</tr>
@@ -344,6 +372,34 @@ div.Scripted, div.Replacement {
 		</tbody>
 	</table>
 	<h3>Convert Scripted Fields: </h3>
+	<form	class="ScriptedFieldConversion"
+			id="initForm"
+			method="POST"
+			action="ScriptedFieldConversion!init.jspa">
+		<table>
+			<tbody>
+				<tr>
+					<th>Field Type: </th>
+					<td>
+							#foreach ($item in $action.getAllFieldTypes())
+								#set ($checked = "")
+								#if ($action.getFieldTypes().contains($item))
+									#set ($checked = "checked='checked'")
+								#end
+								<input 	id="fieldType_${item}"
+										name="fieldType"
+										type="checkbox" 
+										$!{checked}
+										value="${item.toString()}"/>
+								<label for="fieldType_${item}">$!{item.getDisplay()}</label>
+							#end								
+						</select>
+						<input type="submit" value="Refresh Field List"/>
+					</td>
+				</tr>
+			</tbody>
+		</table>
+	</form>
 	<form 	class="ScriptedFieldConversion" 
 			id="projectListForm" 
 			method="POST" 
@@ -353,19 +409,23 @@ div.Scripted, div.Replacement {
 			id="convertForm" 
 			method="POST" 
 			action="ScriptedFieldConversion!convert.jspa">
-		<table>
-			<tr>
-				<td>Field Filter: </td>
-				<td>
-					<input id="filter" name="filter" type="text" value="$!{action.getFilter()}" onkeyup="filterField(this.value)"/>
-				</td>
-			</tr>
-		</table>
 		<table class="DataTable">
 			<thead>
 				<tr>
-					<th>Field Name</th>
-					<th>Field Id<br/>Template/Class</th>
+					<th>Field Name<br/>
+						Name Filter: <input 
+								id="filter" 
+								type="text" 
+								value="$!{action.getFilter()}" 
+								onchange="filterField()"/><br/>
+						#if ($action.getShowAction()) 
+							#set ($showAction = "checked='checked'")
+						#else
+							#set ($showAction = "")
+						#end
+						<input id="showAction" $!{showAction} type="checkbox" onchange="filterField()"/>
+						<label for="showAction">Hide rows without actions</label>
+					</th>
 					<th>Used in Projects<br/>
 						<input type="button" value="Fetch" onclick="document.forms['projectListForm'].submit();"/>
 					</th>
@@ -426,10 +486,12 @@ div.Scripted, div.Replacement {
 						<input 	type="hidden" 
 								name="select" 
 								value="${scriptedFieldId}"/>
-						<!-- Field name -->
-						<td class="fieldName">$!{row.getScriptedField().getName()}</td>
-						<!-- Field ID and type -->
-						<td>$!{scriptedFieldId}<br/>$!{row.getScriptedField().getType()}</td>
+						<td class="fieldName">
+							<!-- Field name -->
+							$!{row.getScriptedField().getName()}<br/>
+							<!-- Field ID and type -->
+							$!{scriptedFieldId}<br/>
+							$!{row.getScriptedField().getType()}</td>
 						<!-- Used in projects -->
 						<td>
 							<p>Used in ${action.getUsedInProjectsCount($fieldId)} project(s)</p>
@@ -475,7 +537,7 @@ div.Scripted, div.Replacement {
 						</td>
 						<td>
 							#set($fieldAction = $row.getFieldAction().getValue())
-							<select name="fieldAction">
+							<select name="fieldAction" class="fieldAction">
 								#foreach ($item in $action.getAllFieldActions())
 									#if ($fieldAction == $item.getValue()) 
 										<option selected="selected" value="${item.getValue()}">$!{item.getDisplay()}</option>
@@ -487,7 +549,7 @@ div.Scripted, div.Replacement {
 						</td>
 						<td>
 							#set($screenAction = $row.getScreenAction().getValue())
-							<select name="screenAction">
+							<select name="screenAction" class="screenAction">
 								#foreach ($item in $action.getAllScreenActions())
 									#if ($screenAction == $item.getValue()) 
 										<option selected="selected" value="${item.getValue()}">$!{item.getDisplay()}</option>
@@ -499,7 +561,7 @@ div.Scripted, div.Replacement {
 						</td>
 						<td>
 							#set($dataAction = $row.getDataAction().getValue())
-							<select name="dataAction">
+							<select name="dataAction" class="dataAction">
 								#foreach ($item in $action.getAllDataActions())
 									#if ($dataAction == $item.getValue()) 
 										<option selected="selected" value="${item.getValue()}">$!{item.getDisplay()}</option>
@@ -697,10 +759,9 @@ div.Scripted, div.Replacement {
 				<th>Job Id</th>
 				<th>Action</th>
 				<th>Status</th>
-				<th>Start Date</th>
-				<th>End Date</th>
+				<th>Duration</th>
 				<th>Processing Status</th>
-				<th width="50%">Message</th>
+				<th width="30%">Message</th>
 				<th>Actions</th>
 			</tr>
 		</thead>
@@ -712,6 +773,14 @@ div.Scripted, div.Replacement {
 				</tr> 
 			#else
 				#foreach ($jobEntity in $jobEntityList)
+					#set ($delete = "disabled='disabled'")
+					#set ($download = "disabled='disabled'")
+					#if (!$jobEntity.isRunning() && $jobEntity.getEndDate())
+						#set ($delete= "")
+						#if ($jobEntity.getDownload())
+							#set ($download = "")
+						#end
+					#end
 					<tr>
 						<td>$!{jobEntity.getScriptedFieldId()}</td>
 						<td>$!{jobEntity.getJobId()}</td>
@@ -723,26 +792,23 @@ div.Scripted, div.Replacement {
 								Stopped
 							#end	
 						</td>
-						<td>$!{jobEntity.getStartDate()}</td>
-						<td>$!{jobEntity.getEndDate()}</td>
+						<td>$!{jobEntity.getDuration()}</td>
 						<td>$!{jobEntity.getCurrentStatus()}</td>
 						<td>
 							<textarea style="width: 95%" rows="5">$!{jobEntity.getMessage()}</textarea>
 						</td>
 						<td>
-							#if ($jobEntity.getDownload())
-								<form 	class="ScriptedFieldConversion" 
-										method="POST" 
-										action="ScriptedFieldConversion!download.jspa">
-									<input type="hidden" name="id" value="${jobEntity.getID()}"/>
-									<button disabled="disabled" type="submit">Download</button>
-								</form>
-							#end
+							<form 	class="ScriptedFieldConversion" 
+									method="POST" 
+									action="ScriptedFieldConversion!download.jspa">
+								<input type="hidden" name="id" value="${jobEntity.getID()}"/>
+								<button class="download" $!{download} type="submit">Download</button>
+							</form>
 							<form 	class="ScriptedFieldConversion"
 									method="POST" 
 									action="ScriptedFieldConversion!delete.jspa">
 								<input type="hidden" name="id" value="${jobEntity.getID()}"/>
-								<button disabled="disabled" type="submit">Delete</button>
+								<button class="delete" $!{disabled} type="submit">Delete</button>
 							</form>
 						</td>
 					</tr>

@@ -13,6 +13,7 @@ import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.text.SimpleDateFormat;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -79,8 +80,10 @@ import com.igsl.job.CopyDataJob;
 import com.igsl.job.ExportDataJob;
 import com.igsl.job.Job;
 import com.igsl.job.JobEntity;
+import com.igsl.job.JobEntityWrapper;
 import com.igsl.session.ActionLog;
 import com.igsl.session.DataRow;
+import com.igsl.session.FieldType;
 import com.igsl.session.ProjectInfo;
 import com.igsl.session.ScreenInfo;
 import com.igsl.session.ScriptedField;
@@ -164,9 +167,34 @@ public class ScriptedFieldConversion extends JiraWebActionSupport {
 		}
 	}
 
+	/** 
+	 * Expose duration calculation
+	 */
+	public static String calculateDuration(Date start, Date stop) {
+		if (start != null && stop != null) {
+			Duration duration = Duration.between(
+					start.toInstant(), 
+					stop.toInstant());
+			long s = duration.toMillis();
+			return String.format("%d:%02d:%02d.%03d", 
+					(s / (1000 * 60 * 60)) % 24, 
+					(s / (1000 * 60)) % 60,
+					(s / 1000) % 60,
+					s % 1000);
+		} else {
+			return "N/A";
+		}
+	}
+	
 	/**
 	 * Exposes data for velocity template
 	 */
+	public List<FieldType> getAllFieldTypes() {
+		return Arrays.asList(FieldType.values());
+	}
+	public List<FieldType> getFieldTypes() {
+		return sessionData.getFieldTypes();
+	}
 	public String getFilter() {
 		return sessionData.getFilter();
 	}
@@ -212,8 +240,12 @@ public class ScriptedFieldConversion extends JiraWebActionSupport {
 	public DataConversionType[] getDataConversionTypes() {
 		return DataConversionType.values();
 	}
-	public List<JobEntity> getAllJobEntity() {
-		return Job.loadAllJobEntity();
+	public List<JobEntityWrapper> getAllJobEntity() {
+		List<JobEntityWrapper> result = new ArrayList<>();
+		for (JobEntity job : Job.loadAllJobEntity()) {
+			result.add(new JobEntityWrapper(job));
+		}
+		return result;
 	}
 	public int getUsedInProjectsCount(String fieldId) {
 		if (sessionData.getUsedInProjects().containsKey(fieldId)) {
@@ -317,50 +349,75 @@ public class ScriptedFieldConversion extends JiraWebActionSupport {
 	}
 	
 	private void fetchScriptedFields() {
-		// Load information about Scripted Fields from database
-		ObjectReader reader = OM.readerFor(ScriptedField.class);
-		List<ScriptedField> fieldList = DATABASE_ACCESSOR.executeQuery(
-				new ConnectionFunction<List<ScriptedField>>() {
-					@Override
-					public List<ScriptedField> run(DatabaseConnection dbConn) {
-						List<ScriptedField> result = new ArrayList<>();
-						Connection conn = dbConn.getJdbcConnection();
-						try (	PreparedStatement ps = conn.prepareStatement(ScriptedField.SCRIPTED_FIELD_QUERY);
-								ResultSet rs = ps.executeQuery()) {
-							while (rs.next()) {
-								try {
-									String data = rs.getString(1);
-									if (data != null && !data.isEmpty()) {
-										MappingIterator<ScriptedField> it = reader.readValues(data);
-										while (it.hasNext()) {
-											ScriptedField conf = it.next();
-											result.add(conf);
+		List<ScriptedField> fieldList = new ArrayList<>();
+		if (sessionData.getFieldTypes().contains(FieldType.SCRIPTED_FIELD)) {
+			// Load information about Scripted Fields from database
+			ObjectReader reader = OM.readerFor(ScriptedField.class);
+			fieldList = DATABASE_ACCESSOR.executeQuery(
+					new ConnectionFunction<List<ScriptedField>>() {
+						@Override
+						public List<ScriptedField> run(DatabaseConnection dbConn) {
+							List<ScriptedField> result = new ArrayList<>();
+							Connection conn = dbConn.getJdbcConnection();
+							try (	PreparedStatement ps = conn.prepareStatement(ScriptedField.SCRIPTED_FIELD_QUERY);
+									ResultSet rs = ps.executeQuery()) {
+								while (rs.next()) {
+									try {
+										String data = rs.getString(1);
+										if (data != null && !data.isEmpty()) {
+											MappingIterator<ScriptedField> it = reader.readValues(data);
+											while (it.hasNext()) {
+												ScriptedField conf = it.next();
+												result.add(conf);
+											}
 										}
+									} catch (IOException ioex) {
+										Log.error(LOGGER, "JSON Error", ioex);
 									}
-								} catch (IOException ioex) {
-									Log.error(LOGGER, "JSON Error", ioex);
 								}
+							} catch (SQLException sqlex) {
+								Log.error(LOGGER, "SQLException", sqlex);
 							}
-						} catch (SQLException sqlex) {
-							Log.error(LOGGER, "SQLException", sqlex);
+							return result;
 						}
-						return result;
+					});
+		}
+		if (sessionData.getFieldTypes().contains(FieldType.ELEMENTS_CONNECT_LIVE)) {
+			// Shoehorn Elements Connect fields as ScriptedFields
+			for (CustomField cf : CUSTOM_FIELD_MANAGER.getCustomFieldObjects()) {
+				String type = cf.getCustomFieldType().getKey();
+				if (type.equals(ScriptedField.ELEMENTS_CONNECT_LIVE)) {
+					ScriptedField sf = new ScriptedField();
+					sf.setCls(cf.getCustomFieldType().getKey());
+					String id = cf.getId();
+					if (id.startsWith("customfield_")) {
+						id = id.substring("customfield_".length());
 					}
-				});
-		// Shoehorn Elements Connect fields as ScriptedFields
-		for (CustomField cf : CUSTOM_FIELD_MANAGER.getCustomFieldObjects()) {
-			if (cf.getCustomFieldType().getKey().startsWith(ScriptedField.ELEMENTS_CONNECT_TYPE)) {
-				ScriptedField sf = new ScriptedField();
-				sf.setCls(cf.getCustomFieldType().getKey());
-				String id = cf.getId();
-				if (id.startsWith("customfield_")) {
-					id = id.substring("customfield_".length());
+					sf.setCustomFieldId(id);
+					sf.setDesc(cf.getDescription());
+					sf.setModelTemplate("elementsConnectLive");	
+					sf.setName(cf.getName());
+					fieldList.add(sf);
 				}
-				sf.setCustomFieldId(id);
-				sf.setDesc(cf.getDescription());
-				sf.setModelTemplate("elementsConnect");	// All EC fields replaced as text field
-				sf.setName(cf.getName());
-				fieldList.add(sf);
+			}
+		}
+		if (sessionData.getFieldTypes().contains(FieldType.ELEMENTS_CONNECT_SNAPSHOT)) {
+			// Shoehorn Elements Connect fields as ScriptedFields
+			for (CustomField cf : CUSTOM_FIELD_MANAGER.getCustomFieldObjects()) {
+				String type = cf.getCustomFieldType().getKey();
+				if (type.equals(ScriptedField.ELEMENTS_CONNECT_SNAPSHOT)) {
+					ScriptedField sf = new ScriptedField();
+					sf.setCls(cf.getCustomFieldType().getKey());
+					String id = cf.getId();
+					if (id.startsWith("customfield_")) {
+						id = id.substring("customfield_".length());
+					}
+					sf.setCustomFieldId(id);
+					sf.setDesc(cf.getDescription());
+					sf.setModelTemplate("elementsConnectSnapshot");	
+					sf.setName(cf.getName());
+					fieldList.add(sf);
+				}
 			}
 		}
 		for (ScriptedField field : fieldList) {
@@ -389,6 +446,20 @@ public class ScriptedFieldConversion extends JiraWebActionSupport {
 
 	private void initSession() {
 		sessionData = new SessionData();
+		
+		// Update field types selected
+		String[] params = this.getHttpRequest().getParameterValues("fieldType");
+		List<FieldType> fieldTypes = FieldType.parse(params);
+		if (fieldTypes != null && fieldTypes.size() != 0) {
+			sessionData.setFieldTypes(fieldTypes);
+		}
+		// Update filter
+		String filter = this.getHttpRequest().getParameter("filter");
+		sessionData.setFilter(filter);
+		// Update checkbox
+		boolean showAction = Boolean.parseBoolean(this.getHttpRequest().getParameter("showAction"));
+		sessionData.setShowAction(showAction);
+		
 		fetchProjects();
 		fetchCustomFields();
 		fetchScriptedFields();

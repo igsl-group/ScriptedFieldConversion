@@ -3,7 +3,8 @@ package com.igsl.session;
 import com.igsl.CustomFieldTypeHelper;
 
 public enum ScriptedFieldType {
-	ELEMENTS_CONNECT("elementsConnect", CustomFieldTypeHelper.TEXT_FIELD),
+	ELEMENTS_CONNECT_SNAPSHOT("elementsConnectSnapshot", CustomFieldTypeHelper.TEXT_FIELD),
+	ELEMENTS_CONNECT_LIVE("elementsConnectLive", CustomFieldTypeHelper.TEXT_FIELD),
 	FLOAT("float", CustomFieldTypeHelper.NUMBER),
 	TEXTAREA("textarea", CustomFieldTypeHelper.TEXT_AREA),
 	ISSUEPICKER("IssuePickerCommand", null),

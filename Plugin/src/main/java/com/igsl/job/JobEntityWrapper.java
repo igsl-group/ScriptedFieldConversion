@@ -2,6 +2,8 @@ package com.igsl.job;
 
 import java.util.Date;
 
+import com.igsl.ScriptedFieldConversion;
+
 /**
  * Wrapper class for JobEntity for Jackson serialization
  * In order to avoid unserializable things inherited from Entity
@@ -12,6 +14,7 @@ public class JobEntityWrapper {
 	public String scriptedFieldId;
 	public Date startDate;
 	public Date endDate;
+	public String duration;
 	public String username;
 	public String download;
 	public String action;
@@ -32,6 +35,10 @@ public class JobEntityWrapper {
 		setRunning(entity.isRunning());
 		setMessage(entity.getMessage());
 		setID(entity.getID());
+		setDuration(
+				"From: " + entity.getStartDate() + " " + 
+				"To: " + entity.getEndDate() + " " + 
+				"Duration: " + ScriptedFieldConversion.calculateDuration(startDate, endDate));
 	}
 	
 	public String getCurrentStatus() {
@@ -99,5 +106,11 @@ public class JobEntityWrapper {
 	}
 	public void setID(int ID) {
 		this.ID = ID;
+	}
+	public String getDuration() {
+		return duration;
+	}
+	public void setDuration(String duration) {
+		this.duration = duration;
 	}
 }
